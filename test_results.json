@@ -1,0 +1,34 @@
+{
+  "token_validation": {
+    "is_page_token": true,
+    "token_name": "\u042d\u0445\u043b\u044d\u043b",
+    "token_id": "682084288324866",
+    "has_moderate": true
+  },
+  "permissions_check": {
+    "current_scopes": [
+      "email",
+      "read_insights",
+      "pages_show_list",
+      "instagram_basic",
+      "instagram_content_publish",
+      "pages_read_engagement",
+      "pages_read_user_content",
+      "pages_manage_posts",
+      "pages_manage_engagement",
+      "public_profile"
+    ],
+    "missing_scopes": [],
+    "has_all_required": true
+  },
+  "basic_operations": {
+    "page_info": "PASSED",
+    "get_posts": "PASSED"
+  },
+  "engagement_operations": {
+    "get_comments": "PASSED",
+    "write_comment": "SKIPPED",
+    "like_post": "SKIPPED"
+  },
+  "errors": []
+}

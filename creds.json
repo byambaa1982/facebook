@@ -1,0 +1,51 @@
+{
+"data": [
+    {
+      "access_token": "EAAMU4HhUxE4BPODoJZBiTs9DEmsx61UAQ4wMAnYbm4asN5ZAGDVkchtUnyBRqiNArPTK2kCZAXa0HIG5HsVZCsYSmNwf0ctmV7fRzWBVjkisuyMvVZChaOZBEnaYqYAtHj4R1qtBYwF4SnXyADnViYiHivtmTh6MCL3ZCJ3ZAyXQZCRuvepw1Kbbw0kFBuCsfN2xhbEWxDLx1ruK3ONI6Qmew8MyZBurofYGSXPp9zO9ZAiaySzhMyYNyTZAhFeU",
+      "category": "Information Technology Company",
+      "category_list": [
+        {
+          "id": "1130035050388269",
+          "name": "Information Technology Company"
+        }
+      ],
+      "name": "Эхлэл",
+      "id": "682084288324866",
+      "tasks": [
+        "MODERATE",
+        "MESSAGING",
+        "ANALYZE",
+        "ADVERTISE",
+        "CREATE_CONTENT",
+        "MANAGE"
+      ]
+    },
+    {
+      "access_token": "EAAMU4HhUxE4BPGZC8TZAughHyY0uw1D3ZAhkLP9SxFf5cedVKEZAZBCM2cycjJQTsc0Icka7A38OaDZBQ86KPgYruB38WQrvZAwGmrZCfoW9jlUVbvDyzTYBSYTOGKfR0nM7ArGtY3GoIxbsHJdMimPbcdqhN0cEAoNwQEnPpXsFQh6nyxudPcOOzRUZApuyzr44ZAKEZApryaakIoivDnd6xZAkm1PWomFZBZCpYJP5lPFR9FIXZBxkg3CrawZB13Qh",
+      "category": "Science & Tech",
+      "category_list": [
+        {
+          "id": "673445767199285",
+          "name": "Science & Tech"
+        }
+      ],
+      "name": "Data Engineer",
+      "id": "348160448389210",
+      "tasks": [
+        "MODERATE",
+        "MESSAGING",
+        "ANALYZE",
+        "ADVERTISE",
+        "CREATE_CONTENT",
+        "MANAGE"
+      ]
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "QVFIU1pCcTZA5TWZAKMWM2NmNyTU5IRFZAqdl92V3ZAGd2VPS1VWY0JXMUs5NUpGYU5xWnNnSHMzOEZAnczBPNGJEUUJOeHNHR0FkVFZAJZAlp1YjRRY3NSQ2w3MkFR",
+      "after": "QVFIUzdySkZAnaVZAnVTcwMXdtX0w3OXZAkV1RQLTY0OEE0X0JjX0lPTUNJbndxRnhrOVRBWTN3OEhWX3V4QTN1SjZAaMEVXWXhlR3g2VjFjb3pMOEQyblEtZAzd3"
+    }
+  }
+}
+

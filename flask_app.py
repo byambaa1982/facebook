@@ -63,10 +63,14 @@ def load_user(user_id):
 from routes.post import bp_post
 from routes.auth import auth_bp
 from routes.home import home_bp
+from routes.database import db_bp
+from routes.admin import admin_bp
 
 app.register_blueprint(bp_post)
 app.register_blueprint(auth_bp)
 app.register_blueprint(home_bp)
+app.register_blueprint(db_bp)
+app.register_blueprint(admin_bp)
 # Create tables if they do not exist
 with app.app_context():
     db.create_all()
@@ -91,7 +95,7 @@ class MyAdminIndexView(AdminIndexView):
 
 
 # Add more ModelViews as needed for other tables
-admin = Admin(app, name='Admin Panel', template_mode='bootstrap4', index_view=MyAdminIndexView())
+admin = Admin(app, name='Admin Panel', template_mode='bootstrap4', index_view=MyAdminIndexView(), url='/flask-admin')
 
 
 class RoleModelView(ModelView):

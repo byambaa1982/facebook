@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if action == 'create' %}Add New Facebook App{% else %}Edit Facebook App{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        {% if action == 'create' %}
+                            <i class="fas fa-plus"></i> Add New Facebook App
+                        {% else %}
+                            <i class="fas fa-edit"></i> Edit Facebook App
+                        {% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+
+                    <form id="appForm">
+                        <div class="mb-3">
+                            <label for="page_id" class="form-label">Page ID <span class="text-danger">*</span></label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="page_id" 
+                                   name="page_id" 
+                                   value="{{ app.page_id if app else '' }}"
+                                   {% if action == 'edit' %}readonly{% endif %}
+                                   required>
+                            <div class="form-text">The Facebook Page ID for this app.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="name" class="form-label">App Name <span class="text-danger">*</span></label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="name" 
+                                   name="name" 
+                                   value="{{ app.username if app else '' }}"
+                                   required>
+                            <div class="form-text">A friendly name for this Facebook app.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="access_token" class="form-label">Access Token <span class="text-danger">*</span></label>
+                            <textarea class="form-control" 
+                                      id="access_token" 
+                                      name="access_token" 
+                                      rows="3" 
+                                      required>{{ app.password if app else '' }}</textarea>
+                            <div class="form-text">The Facebook Page Access Token for API access.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="category" class="form-label">Category</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="category" 
+                                   name="category" 
+                                   value="{{ app.category if app else '' }}">
+                            <div class="form-text">The category of this Facebook page (optional).</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="tasks" class="form-label">Available Tasks</label>
+                            <div class="row">
+                                {% set available_tasks = ['MODERATE', 'MESSAGING', 'ANALYZE', 'ADVERTISE', 'CREATE_CONTENT', 'MANAGE'] %}
+                                {% for task in available_tasks %}
+                                <div class="col-md-6 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               id="task_{{ task }}" 
+                                               name="tasks" 
+                                               value="{{ task }}"
+                                               {% if app and task in app.tasks %}checked{% endif %}>
+                                        <label class="form-check-label" for="task_{{ task }}">
+                                            {{ task.replace('_', ' ').title() }}
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="form-text">Select the tasks this app can perform.</div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('custom_admin.facebook_apps') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to List
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i>
+                                {% if action == 'create' %}Create App{% else %}Update App{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('appForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = {
+        page_id: formData.get('page_id'),
+        name: formData.get('name'),
+        access_token: formData.get('access_token'),
+        category: formData.get('category'),
+        tasks: formData.getAll('tasks')
+    };
+    
+    try {
+        let url, method;
+        {% if action == 'create' %}
+            url = '/admin-panel/api/facebook-apps';
+            method = 'POST';
+        {% else %}
+            url = `/admin-panel/api/facebook-apps/{{ app.page_id }}`;
+            method = 'PUT';
+        {% endif %}
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            window.location.href = '{{ url_for("custom_admin.facebook_apps") }}';
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+</script>
+{% endblock %}

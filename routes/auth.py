@@ -76,4 +76,4 @@ def login():
 @auth_bp.route('/api/logout', methods=['POST'])
 def logout():
     logout_user()  # Use Flask-Login
-    return jsonify({'message': 'Logged out successfully'}), 200
+    return jsonify({'success': True, 'message': 'Logged out successfully'}), 200

@@ -62,9 +62,11 @@ def load_user(user_id):
 
 from routes.post import bp_post
 from routes.auth import auth_bp
+from routes.home import home_bp
 
 app.register_blueprint(bp_post)
 app.register_blueprint(auth_bp)
+app.register_blueprint(home_bp)
 # Create tables if they do not exist
 with app.app_context():
     db.create_all()

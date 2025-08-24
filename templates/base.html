@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Tutorial{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='tutorial.css') }}">
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-6R7KD1FNMR"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-6R7KD1FNMR');
+    </script>
+</head>
+<body>    <header style="position:relative;min-height:60px;padding:10px 0;background:#f8f9fa;border-bottom:1px solid #e1e5e9;">
+        {% block header %}{% endblock %}
+    </header>
+    <nav>
+        {% block nav %}{% endblock %}
+    </nav>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    <script src="{{ url_for('static', filename='auth.js') }}"></script>
+</body>
+</html>

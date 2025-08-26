@@ -488,6 +488,11 @@ def content_view(content_id):
             value = db[key]
             content_data = json.loads(value.decode('utf-8'))
             content_data['created_at'] = datetime.fromisoformat(content_data['created_at'])
+            
+            # Add filename for easier template access
+            if content_data.get('file_path'):
+                content_data['filename'] = os.path.basename(content_data['file_path'])
+            
             db.close()
             return render_template('admin/content_view.html', content=content_data)
         except KeyError:
@@ -497,6 +502,95 @@ def content_view(content_id):
             
     except Exception as e:
         flash(f'Error loading content: {str(e)}', 'error')
+        return redirect(url_for('custom_admin.content_list'))
+
+@admin_bp.route('/content/<content_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def content_edit(content_id):
+    """Edit specific content"""
+    try:
+        db = get_unqlite_db()
+        key = f'content:{content_id}'
+        
+        if request.method == 'GET':
+            try:
+                value = db[key]
+                content_data = json.loads(value.decode('utf-8'))
+                content_data['created_at'] = datetime.fromisoformat(content_data['created_at'])
+                
+                # Add filename for easier template access
+                if content_data.get('file_path'):
+                    content_data['filename'] = os.path.basename(content_data['file_path'])
+                
+                db.close()
+                return render_template('admin/content_form.html', content=content_data, action='edit')
+            except KeyError:
+                db.close()
+                flash('Content not found', 'error')
+                return redirect(url_for('custom_admin.content_list'))
+        
+        # Handle POST request (form submission)
+        elif request.method == 'POST':
+            try:
+                # Get existing content
+                value = db[key]
+                content_data = json.loads(value.decode('utf-8'))
+                
+                # Update fields from form
+                content_data['title'] = request.form.get('title', content_data['title'])
+                content_data['description'] = request.form.get('description', content_data['description'])
+                content_data['tags'] = request.form.get('tags', content_data.get('tags', ''))
+                content_data['is_public'] = request.form.get('is_public') == 'on'
+                content_data['updated_at'] = datetime.now().isoformat()
+                content_data['updated_by'] = current_user.username
+                
+                # Handle new file upload if provided
+                if 'media_file' in request.files and request.files['media_file'].filename != '':
+                    file = request.files['media_file']
+                    
+                    if file and allowed_file(file.filename):
+                        # Check file size
+                        file.seek(0, os.SEEK_END)
+                        file_size = file.tell()
+                        file.seek(0)
+                        
+                        if file_size > MAX_FILE_SIZE:
+                            flash('File size exceeds 10MB limit.', 'error')
+                            db.close()
+                            return render_template('admin/content_form.html', content=content_data, action='edit')
+                        
+                        # Delete old file if it exists
+                        if content_data.get('file_path') and os.path.exists(content_data['file_path']):
+                            os.remove(content_data['file_path'])
+                        
+                        # Save new file
+                        ensure_upload_dir()
+                        filename = secure_filename(file.filename)
+                        unique_filename = f"{uuid.uuid4()}_{filename}"
+                        file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+                        file.save(file_path)
+                        content_data['file_path'] = file_path
+                    else:
+                        flash('Invalid file type.', 'error')
+                        db.close()
+                        return render_template('admin/content_form.html', content=content_data, action='edit')
+                
+                # Save updated content
+                db[key] = json.dumps(content_data)
+                db.commit()
+                db.close()
+                
+                flash('Content updated successfully!', 'success')
+                return redirect(url_for('custom_admin.content_list'))
+                
+            except KeyError:
+                db.close()
+                flash('Content not found', 'error')
+                return redirect(url_for('custom_admin.content_list'))
+            
+    except Exception as e:
+        flash(f'Error editing content: {str(e)}', 'error')
         return redirect(url_for('custom_admin.content_list'))
 
 @admin_bp.route('/api/content/<content_id>', methods=['DELETE'])
@@ -558,6 +652,11 @@ def get_recent_contents(db, limit=10):
                         value_str = str(value)
                     content_data = json.loads(value_str)
                     content_data['created_at'] = datetime.fromisoformat(content_data['created_at'])
+                    
+                    # Add filename for easier template access
+                    if content_data.get('file_path'):
+                        content_data['filename'] = os.path.basename(content_data['file_path'])
+                    
                     contents.append(content_data)
                 except Exception as e:
                     print(f"Error parsing content {key_str}: {e}")

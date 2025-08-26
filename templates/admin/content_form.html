@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Content Ingestion{% endblock %}
+{% block title %}{{ 'Edit Content' if action == 'edit' else 'Content Ingestion' }}{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
     <div class="row">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>Content Ingestion</h2>
+                <h2>{{ 'Edit Content' if action == 'edit' else 'Content Ingestion' }}</h2>
                 <a href="{{ url_for('custom_admin.content_list') }}" class="btn btn-secondary">
                     <i class="fas fa-list"></i> View Contents
                 </a>
@@ -26,45 +26,64 @@
 
             <div class="card">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">Add New Content</h5>
+                    <h5 class="card-title mb-0">{{ 'Edit Content' if action == 'edit' else 'Add New Content' }}</h5>
                 </div>
                 <div class="card-body">
-                    <form action="{{ url_for('custom_admin.content_ingest') }}" method="POST" enctype="multipart/form-data">
+                    <form action="{{ url_for('custom_admin.content_edit', content_id=content.id) if action == 'edit' else url_for('custom_admin.content_ingest') }}" method="POST" enctype="multipart/form-data">
                         <div class="mb-3">
                             <label for="content_type" class="form-label">Content Type</label>
-                            <select class="form-select" id="content_type" name="content_type" required onchange="toggleMediaUpload()">
+                            <select class="form-select" id="content_type" name="content_type" required onchange="toggleMediaUpload()" {{ 'disabled' if action == 'edit' else '' }}>
                                 <option value="">Select content type</option>
-                                <option value="text">Text Only</option>
-                                <option value="image">Image</option>
-                                <option value="video">Video</option>
+                                <option value="text" {{ 'selected' if action == 'edit' and content.content_type == 'text' else '' }}>Text Only</option>
+                                <option value="image" {{ 'selected' if action == 'edit' and content.content_type == 'image' else '' }}>Image</option>
+                                <option value="video" {{ 'selected' if action == 'edit' and content.content_type == 'video' else '' }}>Video</option>
                             </select>
+                            {% if action == 'edit' %}
+                                <input type="hidden" name="content_type" value="{{ content.content_type }}">
+                                <div class="form-text">Content type cannot be changed when editing.</div>
+                            {% endif %}
                         </div>
 
                         <div class="mb-3">
                             <label for="title" class="form-label">Title</label>
-                            <input type="text" class="form-control" id="title" name="title" required maxlength="255">
+                            <input type="text" class="form-control" id="title" name="title" required maxlength="255" value="{{ content.title if action == 'edit' else '' }}">
                         </div>
 
                         <div class="mb-3">
                             <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control" id="description" name="description" rows="4" required></textarea>
+                            <textarea class="form-control" id="description" name="description" rows="4" required>{{ content.description if action == 'edit' else '' }}</textarea>
                         </div>
 
-                        <div class="mb-3" id="media_upload" style="display: none;">
-                            <label for="media_file" class="form-label">Upload File</label>
+                        <div class="mb-3" id="media_upload" style="display: {{ 'block' if action == 'edit' and content.content_type in ['image', 'video'] else 'none' }};">
+                            <label for="media_file" class="form-label">
+                                {{ 'Replace File (optional)' if action == 'edit' else 'Upload File' }}
+                            </label>
                             <input type="file" class="form-control" id="media_file" name="media_file" accept="">
                             <div class="form-text">Maximum file size: 10MB</div>
+                            {% if action == 'edit' and content.file_path %}
+                                <div class="mt-2">
+                                    <small class="text-muted">Current file: {{ content.filename }}</small>
+                                    {% if content.content_type == 'image' %}
+                                        <div class="mt-2">
+                                            <img src="{{ url_for('custom_admin.serve_content_file', filename=content.filename) }}" 
+                                                 alt="Current image" 
+                                                 class="img-thumbnail" 
+                                                 style="max-height: 200px;">
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
                         </div>
 
                         <div class="mb-3">
                             <label for="tags" class="form-label">Tags (optional)</label>
-                            <input type="text" class="form-control" id="tags" name="tags" placeholder="Enter tags separated by commas">
+                            <input type="text" class="form-control" id="tags" name="tags" placeholder="Enter tags separated by commas" value="{{ content.tags if action == 'edit' else '' }}">
                             <div class="form-text">e.g., technology, news, tutorial</div>
                         </div>
 
                         <div class="mb-3">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="is_public" name="is_public" checked>
+                                <input class="form-check-input" type="checkbox" id="is_public" name="is_public" {{ 'checked' if (action == 'edit' and content.is_public) or (action != 'edit') else '' }}>
                                 <label class="form-check-label" for="is_public">
                                     Make content public
                                 </label>
@@ -72,9 +91,9 @@
                         </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="{{ url_for('custom_admin.admin_index') }}" class="btn btn-secondary me-md-2">Cancel</a>
+                            <a href="{{ url_for('custom_admin.content_list') }}" class="btn btn-secondary me-md-2">Cancel</a>
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> Save Content
+                                <i class="fas fa-save"></i> {{ 'Update Content' if action == 'edit' else 'Save Content' }}
                             </button>
                         </div>
                     </form>

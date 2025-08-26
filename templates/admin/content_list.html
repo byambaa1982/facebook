@@ -45,7 +45,7 @@
                                     
                                     {% if content.content_type == 'image' and content.file_path %}
                                         <div class="media-preview mb-3">
-                                            <img src="{{ url_for('custom_admin.serve_content_file', filename=content.file_path.split('/')[-1]) }}" 
+                                            <img src="{{ url_for('custom_admin.serve_content_file', filename=content.filename) }}" 
                                                  alt="{{ content.title }}" 
                                                  class="img-fluid rounded" 
                                                  style="max-height: 300px; max-width: 100%; object-fit: cover;">
@@ -53,7 +53,7 @@
                                     {% elif content.content_type == 'video' and content.file_path %}
                                         <div class="media-preview mb-3">
                                             <video controls class="video-fluid rounded" style="max-height: 300px; max-width: 100%;">
-                                                <source src="{{ url_for('custom_admin.serve_content_file', filename=content.file_path.split('/')[-1]) }}" 
+                                                <source src="{{ url_for('custom_admin.serve_content_file', filename=content.filename) }}" 
                                                         type="video/mp4">
                                                 Your browser does not support the video tag.
                                             </video>
@@ -91,6 +91,9 @@
                                             <button type="button" class="btn btn-sm btn-outline-warning" onclick="editContent('{{ content.id }}')">
                                                 <i class="fas fa-edit"></i> Edit
                                             </button>
+                                            <button type="button" class="btn btn-sm btn-outline-success" onclick="postContent('{{ content.id }}', '{{ content.title }}')">
+                                                <i class="fab fa-facebook"></i> Post
+                                            </button>
                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteContent('{{ content.id }}', '{{ content.title }}')">
                                                 <i class="fas fa-trash"></i> Delete
                                             </button>
@@ -98,6 +101,11 @@
                                         <span class="badge bg-{{ 'success' if content.is_public else 'secondary' }} ms-2">
                                             {{ 'Public' if content.is_public else 'Private' }}
                                         </span>
+                                        {% if content.get('posted_to_facebook') %}
+                                        <span class="badge bg-info ms-1">
+                                            <i class="fab fa-facebook"></i> Posted
+                                        </span>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -265,6 +273,101 @@ function deleteContent(contentId, contentTitle) {
             alert('Error deleting content');
         });
     }
+}
+
+function postContent(contentId, contentTitle) {
+    // First get the list of available Facebook pages
+    fetch('/admin-panel/api/facebook-apps/list', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.apps.length > 0) {
+            // Create a dropdown to select which page to post to
+            let pageOptions = data.apps.map(app => 
+                `<option value="${app.page_id}">${app.username} (${app.page_id})</option>`
+            ).join('');
+            
+            let pageSelectHtml = `
+                <div>
+                    <p>Select a Facebook page to post "${contentTitle}" to:</p>
+                    <select id="pageSelect" class="form-select mb-3">
+                        ${pageOptions}
+                    </select>
+                </div>
+            `;
+            
+            // Create a custom modal dialog
+            let modal = document.createElement('div');
+            modal.innerHTML = `
+                <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Post to Facebook</h5>
+                                <button type="button" class="btn-close" onclick="this.closest('.modal').parentElement.remove()"></button>
+                            </div>
+                            <div class="modal-body">
+                                ${pageSelectHtml}
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').parentElement.remove()">Cancel</button>
+                                <button type="button" class="btn btn-primary" onclick="confirmPost('${contentId}', this)">
+                                    <i class="fab fa-facebook"></i> Post to Facebook
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        } else {
+            alert('No Facebook pages found. Please configure a Facebook app first.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error loading Facebook pages');
+    });
+}
+
+function confirmPost(contentId, button) {
+    const modal = button.closest('.modal').parentElement;
+    const pageSelect = modal.querySelector('#pageSelect');
+    const selectedPageId = pageSelect.value;
+    
+    // Disable button to prevent double-clicks
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting...';
+    
+    fetch(`/admin-panel/api/content/${contentId}/post`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            page_id: selectedPageId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        modal.remove();
+        if (data.success) {
+            alert(`Content posted successfully to ${data.page_name}!\\nPost ID: ${data.post_id}`);
+            location.reload(); // Reload to show updated status
+        } else {
+            alert('Error posting content: ' + data.error);
+        }
+    })
+    .catch(error => {
+        modal.remove();
+        console.error('Error:', error);
+        alert('Error posting content to Facebook');
+    });
 }
 </script>
 {% endblock %}

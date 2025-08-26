@@ -59,6 +59,14 @@ from db.models import User
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+# Template filters
+@app.template_filter('nl2br')
+def nl2br_filter(text):
+    """Convert newlines to HTML line breaks"""
+    if text:
+        return text.replace('\n', '<br>')
+    return text
+
 
 from routes.post import bp_post
 from routes.auth import auth_bp

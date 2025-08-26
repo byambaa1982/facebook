@@ -1,8 +1,11 @@
-from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash
+from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash, send_from_directory
 from flask_login import login_required, current_user
 from functools import wraps
 import json
 import os
+import uuid
+from datetime import datetime
+from werkzeug.utils import secure_filename
 from unqlite import UnQLite
 
 # Blueprint for admin routes
@@ -33,7 +36,90 @@ def get_unqlite_db():
 @admin_required
 def admin_index():
     """Admin panel home page"""
-    return redirect(url_for('custom_admin.facebook_apps'))
+    try:
+        db = get_unqlite_db()
+        stats = get_admin_stats(db)
+        recent_activities = get_recent_activities(db)
+        db.close()
+        return render_template('admin/dashboard.html', stats=stats, recent_activities=recent_activities)
+    except Exception as e:
+        flash(f'Error loading dashboard: {str(e)}', 'error')
+        return redirect(url_for('home.home'))
+
+def get_admin_stats(db):
+    """Get statistics for admin dashboard"""
+    stats = {
+        'facebook_apps_count': 0,
+        'total_content_count': 0,
+        'recent_content_count': 0
+    }
+    
+    try:
+        # Count Facebook apps and content
+        for key, value in db.items():
+            # Handle both string and bytes keys
+            if isinstance(key, bytes):
+                key_str = key.decode('utf-8')
+            else:
+                key_str = str(key)
+                
+            if key_str.startswith('user:'):
+                stats['facebook_apps_count'] += 1
+            elif key_str.startswith('content:'):
+                stats['total_content_count'] += 1
+                # Check if content is from last 7 days
+                try:
+                    if isinstance(value, bytes):
+                        value_str = value.decode('utf-8')
+                    else:
+                        value_str = str(value)
+                    content_data = json.loads(value_str)
+                    if 'created_at' in content_data:
+                        created_at = datetime.fromisoformat(content_data['created_at'])
+                        if (datetime.now() - created_at).days <= 7:
+                            stats['recent_content_count'] += 1
+                except:
+                    pass
+    except Exception as e:
+        print(f"Error getting stats: {e}")
+    
+    return stats
+
+def get_recent_activities(db, limit=5):
+    """Get recent activities for admin dashboard"""
+    activities = []
+    
+    try:
+        for key, value in db.items():
+            # Handle both string and bytes keys
+            if isinstance(key, bytes):
+                key_str = key.decode('utf-8')
+            else:
+                key_str = str(key)
+                
+            if key_str.startswith('content:'):
+                try:
+                    if isinstance(value, bytes):
+                        value_str = value.decode('utf-8')
+                    else:
+                        value_str = str(value)
+                    content_data = json.loads(value_str)
+                    if 'created_at' in content_data:
+                        activities.append({
+                            'title': content_data.get('title', 'Untitled'),
+                            'description': f"Content added: {content_data.get('content_type', 'unknown').title()}",
+                            'timestamp': datetime.fromisoformat(content_data['created_at']),
+                            'type': 'Content',
+                            'type_color': 'success'
+                        })
+                except:
+                    pass
+    except Exception as e:
+        print(f"Error getting activities: {e}")
+    
+    # Sort by timestamp and return recent ones
+    activities.sort(key=lambda x: x['timestamp'], reverse=True)
+    return activities[:limit]
 
 @admin_bp.route('/facebook-apps')
 @login_required
@@ -264,3 +350,223 @@ def edit_facebook_app(page_id):
     except Exception as e:
         flash(f'Error loading app: {str(e)}', 'error')
         return redirect(url_for('custom_admin.facebook_apps'))
+
+# Content Management Routes
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), '..', 'instance', 'uploads')
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'mp4', 'avi', 'mov', 'webm'}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+def allowed_file(filename):
+    """Check if file extension is allowed"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def ensure_upload_dir():
+    """Ensure upload directory exists"""
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
+
+@admin_bp.route('/content')
+@login_required
+@admin_required
+def content_list():
+    """Display content list page"""
+    try:
+        db = get_unqlite_db()
+        contents = get_recent_contents(db, limit=10)
+        db.close()
+        return render_template('admin/content_list.html', contents=contents)
+    except Exception as e:
+        flash(f'Error loading contents: {str(e)}', 'error')
+        return redirect(url_for('custom_admin.admin_index'))
+
+@admin_bp.route('/content/all')
+@login_required
+@admin_required
+def content_list_all():
+    """Display all content"""
+    try:
+        db = get_unqlite_db()
+        contents = get_recent_contents(db, limit=None)
+        db.close()
+        return render_template('admin/content_list.html', contents=contents)
+    except Exception as e:
+        flash(f'Error loading contents: {str(e)}', 'error')
+        return redirect(url_for('custom_admin.admin_index'))
+
+@admin_bp.route('/content/ingest', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def content_ingest():
+    """Content ingestion form and handler"""
+    if request.method == 'GET':
+        return render_template('admin/content_form.html')
+    
+    try:
+        # Get form data
+        content_type = request.form.get('content_type')
+        title = request.form.get('title')
+        description = request.form.get('description')
+        tags = request.form.get('tags', '')
+        is_public = request.form.get('is_public') == 'on'
+        
+        # Validate required fields
+        if not all([content_type, title, description]):
+            flash('Please fill in all required fields.', 'error')
+            return render_template('admin/content_form.html')
+        
+        # Handle file upload for image/video content
+        file_path = None
+        if content_type in ['image', 'video']:
+            if 'media_file' not in request.files:
+                flash('Please upload a file for this content type.', 'error')
+                return render_template('admin/content_form.html')
+            
+            file = request.files['media_file']
+            if file.filename == '':
+                flash('Please select a file to upload.', 'error')
+                return render_template('admin/content_form.html')
+            
+            if file and allowed_file(file.filename):
+                # Check file size
+                file.seek(0, os.SEEK_END)
+                file_size = file.tell()
+                file.seek(0)
+                
+                if file_size > MAX_FILE_SIZE:
+                    flash('File size exceeds 10MB limit.', 'error')
+                    return render_template('admin/content_form.html')
+                
+                # Save file
+                ensure_upload_dir()
+                filename = secure_filename(file.filename)
+                unique_filename = f"{uuid.uuid4()}_{filename}"
+                file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+                file.save(file_path)
+            else:
+                flash('Invalid file type. Please upload a valid image or video file.', 'error')
+                return render_template('admin/content_form.html')
+        
+        # Create content data
+        content_id = str(uuid.uuid4())
+        content_data = {
+            'id': content_id,
+            'title': title,
+            'description': description,
+            'content_type': content_type,
+            'tags': tags,
+            'is_public': is_public,
+            'file_path': file_path,
+            'created_by': current_user.username,
+            'created_at': datetime.now().isoformat()
+        }
+        
+        # Save to database
+        db = get_unqlite_db()
+        key = f'content:{content_id}'
+        db[key] = json.dumps(content_data)
+        db.commit()
+        db.close()
+        
+        flash('Content ingested successfully!', 'success')
+        return redirect(url_for('custom_admin.content_list'))
+        
+    except Exception as e:
+        flash(f'Error ingesting content: {str(e)}', 'error')
+        return render_template('admin/content_form.html')
+
+@admin_bp.route('/content/<content_id>/view')
+@login_required
+@admin_required
+def content_view(content_id):
+    """View specific content"""
+    try:
+        db = get_unqlite_db()
+        key = f'content:{content_id}'
+        
+        try:
+            value = db[key]
+            content_data = json.loads(value.decode('utf-8'))
+            content_data['created_at'] = datetime.fromisoformat(content_data['created_at'])
+            db.close()
+            return render_template('admin/content_view.html', content=content_data)
+        except KeyError:
+            db.close()
+            flash('Content not found', 'error')
+            return redirect(url_for('custom_admin.content_list'))
+            
+    except Exception as e:
+        flash(f'Error loading content: {str(e)}', 'error')
+        return redirect(url_for('custom_admin.content_list'))
+
+@admin_bp.route('/api/content/<content_id>', methods=['DELETE'])
+@login_required
+@admin_required
+def delete_content(content_id):
+    """API endpoint to delete content"""
+    try:
+        db = get_unqlite_db()
+        key = f'content:{content_id}'
+        
+        try:
+            # Get content data to check for file
+            value = db[key]
+            content_data = json.loads(value.decode('utf-8'))
+            
+            # Delete file if exists
+            if content_data.get('file_path') and os.path.exists(content_data['file_path']):
+                os.remove(content_data['file_path'])
+            
+            # Delete from database
+            del db[key]
+            db.commit()
+            db.close()
+            
+            return jsonify({'success': True, 'message': 'Content deleted successfully'})
+            
+        except KeyError:
+            db.close()
+            return jsonify({'success': False, 'message': 'Content not found'}), 404
+            
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@admin_bp.route('/uploads/<filename>')
+@login_required
+@admin_required
+def serve_content_file(filename):
+    """Serve uploaded content files"""
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
+def get_recent_contents(db, limit=10):
+    """Get recent contents from database"""
+    contents = []
+    
+    try:
+        for key, value in db.items():
+            # Handle both string and bytes keys
+            if isinstance(key, bytes):
+                key_str = key.decode('utf-8')
+            else:
+                key_str = str(key)
+                
+            if key_str.startswith('content:'):
+                try:
+                    if isinstance(value, bytes):
+                        value_str = value.decode('utf-8')
+                    else:
+                        value_str = str(value)
+                    content_data = json.loads(value_str)
+                    content_data['created_at'] = datetime.fromisoformat(content_data['created_at'])
+                    contents.append(content_data)
+                except Exception as e:
+                    print(f"Error parsing content {key_str}: {e}")
+    except Exception as e:
+        print(f"Error getting contents: {e}")
+    
+    # Sort by creation date (newest first)
+    contents.sort(key=lambda x: x['created_at'], reverse=True)
+    
+    if limit:
+        return contents[:limit]
+    return contents

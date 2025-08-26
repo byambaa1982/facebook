@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Content Ingestion{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Content Ingestion</h2>
+                <a href="{{ url_for('custom_admin.content_list') }}" class="btn btn-secondary">
+                    <i class="fas fa-list"></i> View Contents
+                </a>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Add New Content</h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('custom_admin.content_ingest') }}" method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="content_type" class="form-label">Content Type</label>
+                            <select class="form-select" id="content_type" name="content_type" required onchange="toggleMediaUpload()">
+                                <option value="">Select content type</option>
+                                <option value="text">Text Only</option>
+                                <option value="image">Image</option>
+                                <option value="video">Video</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="title" name="title" required maxlength="255">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="4" required></textarea>
+                        </div>
+
+                        <div class="mb-3" id="media_upload" style="display: none;">
+                            <label for="media_file" class="form-label">Upload File</label>
+                            <input type="file" class="form-control" id="media_file" name="media_file" accept="">
+                            <div class="form-text">Maximum file size: 10MB</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="tags" class="form-label">Tags (optional)</label>
+                            <input type="text" class="form-control" id="tags" name="tags" placeholder="Enter tags separated by commas">
+                            <div class="form-text">e.g., technology, news, tutorial</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_public" name="is_public" checked>
+                                <label class="form-check-label" for="is_public">
+                                    Make content public
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('custom_admin.admin_index') }}" class="btn btn-secondary me-md-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Content
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.container {
+    max-width: 800px;
+}
+
+.card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    padding: 1rem;
+}
+
+.form-label {
+    font-weight: 600;
+    color: #333;
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    text-decoration: none;
+    display: inline-block;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+.alert {
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+</style>
+
+<script>
+function toggleMediaUpload() {
+    const contentType = document.getElementById('content_type').value;
+    const mediaUpload = document.getElementById('media_upload');
+    const mediaFile = document.getElementById('media_file');
+    
+    if (contentType === 'text') {
+        mediaUpload.style.display = 'none';
+        mediaFile.required = false;
+        mediaFile.accept = '';
+    } else if (contentType === 'image') {
+        mediaUpload.style.display = 'block';
+        mediaFile.required = true;
+        mediaFile.accept = 'image/*';
+    } else if (contentType === 'video') {
+        mediaUpload.style.display = 'block';
+        mediaFile.required = true;
+        mediaFile.accept = 'video/*';
+    } else {
+        mediaUpload.style.display = 'none';
+        mediaFile.required = false;
+        mediaFile.accept = '';
+    }
+}
+</script>
+{% endblock %}

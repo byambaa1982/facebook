@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}Content Management{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Content Management</h2>
+                <a href="{{ url_for('custom_admin.content_ingest') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add New Content
+                </a>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Recent Content (Last 10)</h5>
+                </div>
+                <div class="card-body">
+                    {% if contents %}
+                        <div class="row">
+                            {% for content in contents %}
+                            <div class="col-12 mb-4">
+                                <div class="content-item border rounded p-3">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h5 class="content-title">{{ content.title }}</h5>
+                                        <span class="badge bg-{{ 'primary' if content.content_type == 'text' else 'success' if content.content_type == 'image' else 'info' }}">
+                                            {{ content.content_type.title() }}
+                                        </span>
+                                    </div>
+                                    
+                                    <p class="content-description text-muted">{{ content.description[:200] }}{% if content.description|length > 200 %}...{% endif %}</p>
+                                    
+                                    {% if content.content_type == 'image' and content.file_path %}
+                                        <div class="media-preview mb-3">
+                                            <img src="{{ url_for('custom_admin.serve_content_file', filename=content.file_path.split('/')[-1]) }}" 
+                                                 alt="{{ content.title }}" 
+                                                 class="img-fluid rounded" 
+                                                 style="max-height: 300px; max-width: 100%; object-fit: cover;">
+                                        </div>
+                                    {% elif content.content_type == 'video' and content.file_path %}
+                                        <div class="media-preview mb-3">
+                                            <video controls class="video-fluid rounded" style="max-height: 300px; max-width: 100%;">
+                                                <source src="{{ url_for('custom_admin.serve_content_file', filename=content.file_path.split('/')[-1]) }}" 
+                                                        type="video/mp4">
+                                                Your browser does not support the video tag.
+                                            </video>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <div class="content-meta">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-user"></i> {{ content.created_by }}
+                                                </small>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-calendar"></i> {{ content.created_at.strftime('%Y-%m-%d %H:%M') if content.created_at else 'Unknown' }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                        
+                                        {% if content.tags %}
+                                        <div class="mt-2">
+                                            {% for tag in content.tags.split(',') %}
+                                                <span class="badge bg-light text-dark me-1">#{{ tag.strip() }}</span>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="content-actions mt-3">
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="viewContent('{{ content.id }}')">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="editContent('{{ content.id }}')">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteContent('{{ content.id }}', '{{ content.title }}')">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </button>
+                                        </div>
+                                        <span class="badge bg-{{ 'success' if content.is_public else 'secondary' }} ms-2">
+                                            {{ 'Public' if content.is_public else 'Private' }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if contents|length == 10 %}
+                        <div class="text-center mt-4">
+                            <a href="{{ url_for('custom_admin.content_list_all') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-list"></i> View All Contents
+                            </a>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Content Found</h5>
+                            <p class="text-muted">Get started by adding your first content.</p>
+                            <a href="{{ url_for('custom_admin.content_ingest') }}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Add Content
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.container {
+    max-width: 1200px;
+}
+
+.card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    padding: 1rem;
+}
+
+.content-item {
+    background-color: #f8f9fa;
+    transition: box-shadow 0.2s ease;
+}
+
+.content-item:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.content-title {
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.content-description {
+    line-height: 1.5;
+}
+
+.media-preview {
+    text-align: center;
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    text-decoration: none;
+    display: inline-block;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.btn-outline-primary {
+    color: #007bff;
+    border-color: #007bff;
+    background-color: transparent;
+}
+
+.btn-outline-warning {
+    color: #ffc107;
+    border-color: #ffc107;
+    background-color: transparent;
+}
+
+.btn-outline-danger {
+    color: #dc3545;
+    border-color: #dc3545;
+    background-color: transparent;
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+.badge {
+    padding: 0.4em 0.6em;
+    border-radius: 0.25rem;
+}
+
+.bg-primary { background-color: #007bff !important; }
+.bg-success { background-color: #28a745 !important; }
+.bg-info { background-color: #17a2b8 !important; }
+.bg-light { background-color: #f8f9fa !important; }
+.bg-secondary { background-color: #6c757d !important; }
+
+.alert {
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+</style>
+
+<script>
+function viewContent(contentId) {
+    // Implement view content functionality
+    window.location.href = `/admin-panel/content/${contentId}/view`;
+}
+
+function editContent(contentId) {
+    // Implement edit content functionality
+    window.location.href = `/admin-panel/content/${contentId}/edit`;
+}
+
+function deleteContent(contentId, contentTitle) {
+    if (confirm(`Are you sure you want to delete "${contentTitle}"? This action cannot be undone.`)) {
+        fetch(`/admin-panel/api/content/${contentId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error deleting content: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting content');
+        });
+    }
+}
+</script>
+{% endblock %}

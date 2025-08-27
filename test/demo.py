@@ -13,8 +13,8 @@ def demo_basic_posting(fb):
     
     # Text post
     print("1. Creating a text post...")
-    post_id = fb.post_text("Hello from FacebookPageManager! 🤖 This is a demo post.")
-    
+    post_id = fb.post_text("Hello from Graph API! 🤖 This is a demo post.")
+
     if post_id:
         # Add a comment to our own post
         print("2. Adding a comment to the post...")

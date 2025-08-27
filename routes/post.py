@@ -25,37 +25,39 @@ def admin_required(f):
     return decorated_function
 
 def get_unqlite_db():
-    """Get UnQLite database connection"""
+    """Get UnQLite database connection (for content storage)"""
     db_path = os.path.join(os.path.dirname(__file__), '..', 'instance', 'data.db')
     return UnQLite(db_path)
 
 def get_facebook_apps():
-    """Get all Facebook apps from database"""
-    db = get_unqlite_db()
+    """Get all Facebook apps from creds.json"""
     apps = []
     
     try:
-        for key, value in db.items():
-            if isinstance(key, bytes):
-                key_str = key.decode('utf-8')
-            else:
-                key_str = str(key)
+        # Read from local creds.json file in routes directory
+        creds_path = os.path.join(os.path.dirname(__file__), 'creds.json')
+        
+        if not os.path.exists(creds_path):
+            print(f"Credentials file not found: {creds_path}")
+            return apps
+        
+        with open(creds_path, 'r', encoding='utf-8') as f:
+            creds_data = json.load(f)
+        
+        if 'data' in creds_data:
+            for app in creds_data['data']:
+                # Transform the data structure to match what the rest of the code expects
+                app_data = {
+                    'page_id': app.get('id'),  # Map 'id' to 'page_id'
+                    'username': app.get('name'),  # Map 'name' to 'username'
+                    'password': app.get('access_token'),  # Map 'access_token' to 'password'
+                    'category': app.get('category'),
+                    'tasks': app.get('tasks', [])
+                }
+                apps.append(app_data)
                 
-            if key_str.startswith('user:'):
-                try:
-                    if isinstance(value, bytes):
-                        value_str = value.decode('utf-8')
-                    else:
-                        value_str = str(value)
-                    app_data = json.loads(value_str)
-                    apps.append(app_data)
-                except (json.JSONDecodeError, UnicodeDecodeError) as e:
-                    print(f"Error decoding data for key {key_str}: {e}")
-                    continue
     except Exception as e:
-        print(f"Error getting Facebook apps: {e}")
-    finally:
-        db.close()
+        print(f"Error getting Facebook apps from creds.json: {e}")
     
     return apps
 

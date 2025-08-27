@@ -84,7 +84,7 @@ if __name__ == "__main__":
     # 2) Photo post (by URL)
     post_id = post_photo(
         image_url="duckdb.png",
-        caption="Photo posted via Python"
+        caption="Photo posted via Python Again Second Time"
     )
 
     # 3) List latest posts

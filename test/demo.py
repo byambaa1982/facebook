@@ -182,7 +182,7 @@ def interactive_demo():
                 
     except Exception as e:
         print(f"❌ Error: {e}")
-        print("Make sure your config.json file has valid credentials!")
+        print("Make sure your creds.json file has valid credentials!")
 
 if __name__ == "__main__":
     interactive_demo()

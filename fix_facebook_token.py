@@ -15,7 +15,7 @@ def update_facebook_token():
     
     # Get current working token from test config
     try:
-        with open('test/config.json', 'r') as f:
+        with open('test/creds.json', 'r', encoding='utf-8') as f:
             config = json.load(f)
         current_token = config['page_token']
         page_id = config['page_id']

@@ -4,7 +4,7 @@ import json
 
 # Load config from file or environment variables
 try:
-    with open("config.json", "r") as f:
+    with open("creds.json", "r", encoding='utf-8') as f:
         config = json.load(f)
     PAGE_ID = config["page_id"]
     PAGE_TOKEN = config["page_token"]

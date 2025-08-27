@@ -22,7 +22,7 @@ from faceClass import FacebookPageManager
 class FacebookPageTester:
     """Comprehensive tester for Facebook Page Manager functionality."""
     
-    def __init__(self, config_file: str = "config.json"):
+    def __init__(self, config_file: str = "creds.json"):
         """Initialize tester with Facebook Page Manager."""
         self.fb = FacebookPageManager(config_file)
         self.test_results = {
@@ -262,7 +262,7 @@ class FacebookPageTester:
         
         checklist = [
             ("User Access Token includes required scopes", "Check get_token.py permissions"),
-            ("Page Access Token copied from me/accounts", "Check config.json token source"),
+            ("Page Access Token copied from me/accounts", "Check creds.json token source"),
             ("Token switched to Page Access Token in testing", "Verify with assert_page_token()"),
             ("Page role includes MODERATE task", "Check Page settings > Page roles"),
             ("API calls use Page Access Token", "Verify FacebookPageManager loads correct token")
@@ -353,7 +353,7 @@ def main():
     except Exception as e:
         print(f"❌ Test suite failed to initialize: {str(e)}")
         print("\nCommon causes:")
-        print("  • config.json file missing or invalid")
+        print("  • creds.json file missing or invalid")
         print("  • Facebook tokens expired or invalid")
         print("  • Network connectivity issues")
 

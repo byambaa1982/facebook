@@ -10,7 +10,7 @@ class FacebookPageManager:
     managing comments, and reviewing page activity.
     """
     
-    def __init__(self, config_file: str = "config.json"):
+    def __init__(self, config_file: str = "creds.json"):
         """
         Initialize the Facebook Page Manager.
         
@@ -25,7 +25,7 @@ class FacebookPageManager:
     def _load_config(self, config_file: str):
         """Load configuration from file or environment variables."""
         try:
-            with open(config_file, "r") as f:
+            with open(config_file, "r", encoding='utf-8') as f:
                 config = json.load(f)
             self.page_id = config["page_id"]
             self.page_token = config["page_token"]
@@ -35,7 +35,7 @@ class FacebookPageManager:
             self.page_token = os.getenv("FB_PAGE_TOKEN")
             
         if not self.page_id or not self.page_token:
-            raise ValueError("Missing Facebook Page ID or Token. Check config.json or environment variables.")
+            raise ValueError("Missing Facebook Page ID or Token. Check creds.json or environment variables.")
     
     def _handle_response(self, response: requests.Response) -> Dict:
         """Handle API response and errors."""

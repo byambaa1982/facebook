@@ -83,7 +83,7 @@ def main():
         print(f"❌ Demo failed: {str(e)}")
         print("\nCommon solutions:")
         print("  1. Run 'python get_token.py' to regenerate your Page Access Token")
-        print("  2. Ensure config.json has valid page_id and page_token")
+        print("  2. Ensure creds.json has valid page_id and page_token")
         print("  3. Check that your Facebook app has the required permissions")
 
 

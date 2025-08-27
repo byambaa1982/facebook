@@ -18,7 +18,7 @@ facebook/
 ├── test.py            # Comprehensive test suite
 ├── demo_safe.py       # Safe demo (read-only operations)
 ├── demo.py           # Full demo with posting
-├── config.json       # Configuration file (auto-generated)
+├── creds.json       # Configuration file (auto-generated)
 └── README.md         # This file
 ```
 
@@ -50,7 +50,7 @@ python get_token.py
 This will:
 - Open Facebook authorization page
 - Guide you through OAuth flow
-- Generate and save Page Access Token to `config.json`
+- Generate and save Page Access Token to `creds.json`
 - Verify token works correctly
 
 ### 3. Validate Setup
@@ -73,7 +73,7 @@ This comprehensive test will check:
 ```python
 from faceClass import FacebookPageManager
 
-# Initialize (loads from config.json)
+# Initialize (loads from creds.json)
 fb = FacebookPageManager()
 
 # Get page info
@@ -186,7 +186,7 @@ tester.check_required_permissions()  # Validates scopes
 
 ## 🔒 Security Notes
 
-- Keep `config.json` private (contains access tokens)
+- Keep `creds.json` private (contains access tokens)
 - Tokens are long-lived but may expire
 - Never commit tokens to version control
 - Use environment variables in production

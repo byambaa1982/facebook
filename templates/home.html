@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div style="margin: 20px 0;">
             <div style="display: flex; align-items: center; margin: 10px 0;">
                 <span class="step-number">1</span>
-                <span>Set up your Facebook credentials in <code>config.json</code></span>
+                <span>Set up your Facebook credentials in <code>creds.json</code></span>
             </div>
             <div style="display: flex; align-items: center; margin: 10px 0;">
                 <span class="step-number">2</span>
@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <!-- Configuration Setup -->
     <div class="feature-card">
         <h3>⚙️ Configuration Setup</h3>
-        <p>First, create a <code>config.json</code> file with your Facebook credentials:</p>
+        <p>First, create a <code>creds.json</code> file with your Facebook credentials:</p>
         
         <div class="code-block">
 {
@@ -193,7 +193,7 @@ export FB_PAGE_TOKEN="your_page_access_token_here"
 from faceClass import FacebookPageManager
 
 # Initialize the manager
-fb = FacebookPageManager("config.json")
+fb = FacebookPageManager("creds.json")
 
 # Post text content
 post_id = fb.post_text("Hello from FacebookPageManager! 🤖")
@@ -337,7 +337,7 @@ python test/test.py
         <ol style="font-size: 16px; line-height: 1.6;">
             <li><strong>Get your Facebook Page Access Token</strong> from the Facebook Developer Console</li>
             <li><strong>Find your Page ID</strong> from your Facebook Page settings</li>
-            <li><strong>Create your config.json</strong> file with the credentials</li>
+            <li><strong>Create your creds.json</strong> file with the credentials</li>
             <li><strong>Run the safe demo</strong> to verify your setup: <code>python test/demo_safe.py</code></li>
             <li><strong>Try posting content</strong> with the full demo: <code>python test/demo.py</code></li>
             <li><strong>Integrate into your app</strong> using either the class or function approach</li>
@@ -354,7 +354,7 @@ python test/test.py
         <p>Check out these resources if you run into issues:</p>
         <ul>
             <li><strong>Test Results:</strong> Review <code>test/test_results.json</code> for detailed testing information</li>
-            <li><strong>Configuration:</strong> Verify your <code>config.json</code> file format and credentials</li>
+            <li><strong>Configuration:</strong> Verify your <code>creds.json</code> file format and credentials</li>
             <li><strong>Facebook API Docs:</strong> <a href="https://developers.facebook.com/docs/graph-api" target="_blank">Facebook Graph API Documentation</a></li>
             <li><strong>Error Handling:</strong> All methods include comprehensive error handling and logging</li>
         </ul>

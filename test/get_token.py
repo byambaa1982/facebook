@@ -94,16 +94,23 @@ def get_page_access_token(user_token):
     return page_token, page_id
 
 def save_config(page_id, page_token):
-    """Save page configuration to config.json"""
-    config = {
-        "page_id": page_id,
-        "page_token": page_token
-    }
+    """Save page configuration to creds.json"""
+    # Try to load existing creds.json to preserve data structure
+    config = {}
+    try:
+        with open("creds.json", "r", encoding='utf-8') as f:
+            config = json.load(f)
+    except FileNotFoundError:
+        pass
     
-    with open("config.json", "w") as f:
+    # Update the page_id and page_token
+    config["page_id"] = page_id
+    config["page_token"] = page_token
+    
+    with open("creds.json", "w", encoding='utf-8') as f:
         json.dump(config, f, indent=2)
     
-    print(f"✅ Configuration saved to config.json")
+    print(f"✅ Configuration saved to creds.json")
 
 def verify_page_token(page_token):
     """Verify the page token works and show token info"""
@@ -163,7 +170,7 @@ def main():
     print(f"\n7. Setup complete! You can now run:")
     print(f"   python test.py  # Test the configuration")
     print(f"   python demo.py  # Run demos")
-    print(f"\n💡 The page token is now saved in config.json and ready to use!")
+    print(f"\n💡 The page token is now saved in creds.json and ready to use!")
 
 if __name__ == "__main__":
     main()

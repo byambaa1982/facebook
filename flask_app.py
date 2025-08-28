@@ -73,12 +73,14 @@ from routes.auth import auth_bp
 from routes.home import home_bp
 from routes.database import db_bp
 from routes.admin import admin_bp
+from routes.comment import bp_comment
 
 app.register_blueprint(bp_post)
 app.register_blueprint(auth_bp)
 app.register_blueprint(home_bp)
 app.register_blueprint(db_bp)
 app.register_blueprint(admin_bp)
+app.register_blueprint(bp_comment)
 # Create tables if they do not exist
 with app.app_context():
     db.create_all()

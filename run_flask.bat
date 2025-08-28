@@ -1,6 +1,0 @@
-@echo off
-echo Activating virtual environment...
-call .venv\Scripts\activate.bat
-echo Starting Flask application...
-python flask_app.py
-pause

@@ -73,17 +73,21 @@ def get_posts_from_db():
             try:
                 # Handle different key types that unqlite might return
                 if isinstance(raw_key, tuple):
-                    # Sometimes unqlite returns tuples, get the first element
+                    # UnQLite returns tuples (key, value)
                     key_bytes = raw_key[0] if raw_key else b''
+                    value_bytes = raw_key[1] if len(raw_key) > 1 else b''
                 elif isinstance(raw_key, bytes):
                     key_bytes = raw_key
+                    value_bytes = db[raw_key]  # Get value from database
                 elif isinstance(raw_key, str):
                     key_bytes = raw_key.encode('utf-8')
+                    value_bytes = db[raw_key]  # Get value from database
                 else:
                     # Try to convert to bytes
                     key_bytes = str(raw_key).encode('utf-8')
+                    value_bytes = db[raw_key]  # Get value from database
                 
-                # Decode to string
+                # Decode key to string
                 if hasattr(key_bytes, 'decode'):
                     key_str = key_bytes.decode('utf-8')
                 else:
@@ -91,14 +95,11 @@ def get_posts_from_db():
                 
                 if key_str.startswith('content:'):
                     try:
-                        # Use the raw key to access the database value
-                        value = db[raw_key]
-                        
                         # Handle value decoding
-                        if hasattr(value, 'decode'):
-                            value_str = value.decode('utf-8')
+                        if hasattr(value_bytes, 'decode'):
+                            value_str = value_bytes.decode('utf-8')
                         else:
-                            value_str = str(value)
+                            value_str = str(value_bytes)
                         
                         content_data = json.loads(value_str)
                         
@@ -234,23 +235,41 @@ def get_comments_from_db(content_id, post_id=None):
             # Get comments for specific post
             comments_key = f'comments:{content_id}:{post_id}'
             try:
-                value = db[comments_key]
-                return json.loads(value.decode('utf-8'))
+                # Handle tuple format from UnQLite
+                for raw_key in db:
+                    if isinstance(raw_key, tuple):
+                        key_str = raw_key[0].decode('utf-8') if hasattr(raw_key[0], 'decode') else str(raw_key[0])
+                        value_bytes = raw_key[1]
+                    else:
+                        key_str = raw_key.decode('utf-8') if hasattr(raw_key, 'decode') else str(raw_key)
+                        value_bytes = db[raw_key]
+                    
+                    if key_str == comments_key:
+                        value_str = value_bytes.decode('utf-8') if hasattr(value_bytes, 'decode') else str(value_bytes)
+                        return json.loads(value_str)
+                
+                return None
             except KeyError:
                 return None
         else:
             # Get all comments for content
             all_comments = []
-            for key in db:
-                key_str = key.decode('utf-8')
-                if key_str.startswith(f'comments:{content_id}:'):
-                    try:
-                        value = db[key]
-                        comment_data = json.loads(value.decode('utf-8'))
+            for raw_key in db:
+                try:
+                    if isinstance(raw_key, tuple):
+                        key_str = raw_key[0].decode('utf-8') if hasattr(raw_key[0], 'decode') else str(raw_key[0])
+                        value_bytes = raw_key[1]
+                    else:
+                        key_str = raw_key.decode('utf-8') if hasattr(raw_key, 'decode') else str(raw_key)
+                        value_bytes = db[raw_key]
+                    
+                    if key_str.startswith(f'comments:{content_id}:'):
+                        value_str = value_bytes.decode('utf-8') if hasattr(value_bytes, 'decode') else str(value_bytes)
+                        comment_data = json.loads(value_str)
                         all_comments.append(comment_data)
-                    except Exception as e:
-                        print(f"Error parsing comment data for key {key_str}: {e}")
-                        continue
+                except Exception as e:
+                    print(f"Error parsing comment data for key {key_str}: {e}")
+                    continue
             return all_comments
                         
     except Exception as e:

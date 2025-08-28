@@ -12,7 +12,7 @@
                 <h2><i class="fas fa-comments"></i> Comments Management</h2>
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{{ url_for('custom_admin.dashboard') }}">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('custom_admin.admin_index') }}">Dashboard</a></li>
                         <li class="breadcrumb-item active">Comments</li>
                     </ol>
                 </nav>
@@ -250,17 +250,26 @@ async function loadPosts() {
     showLoading(true);
     
     try {
+        console.log('DEBUG: Fetching posts from /admin-panel/api/posts');
         const response = await fetch('/admin-panel/api/posts');
+        console.log('DEBUG: Response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
+        console.log('DEBUG: Response data:', data);
         
         if (data.success) {
             currentPosts = data.posts;
             displayPosts(data.posts);
-            showFlashMessage(`Loaded ${data.posts.length} posts successfully`);
+            showFlashMessage(`Loaded ${data.posts.length} posts successfully (Total found: ${data.count || data.posts.length})`);
         } else {
             showFlashMessage(`Error: ${data.error}`, 'danger');
         }
     } catch (error) {
+        console.error('DEBUG: Error in loadPosts:', error);
         showFlashMessage(`Network error: ${error.message}`, 'danger');
     } finally {
         showLoading(false);
@@ -270,35 +279,60 @@ async function loadPosts() {
 function displayPosts(posts) {
     const container = document.getElementById('postsContainer');
     
+    console.log('DEBUG: displayPosts called with', posts.length, 'posts');
+    
     if (posts.length === 0) {
-        container.innerHTML = '<p class="text-muted text-center">No posted content found</p>';
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Posted Content Found</h5>
+                <p class="text-muted">
+                    No content has been posted to Facebook yet, or the content doesn't have Facebook post IDs.<br>
+                    Make sure to post content using the Content Management section first.
+                </p>
+                <a href="/admin-panel/content" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Go to Content Management
+                </a>
+            </div>
+        `;
         return;
     }
     
-    const postsHtml = posts.map(post => `
+    const postsHtml = posts.map(post => {
+        const title = post.title || 'Untitled';
+        const description = post.description || 'No description';
+        const postedAt = post.posted_at ? new Date(post.posted_at).toLocaleDateString() : 'Unknown date';
+        const postId = post.facebook_post_id || 'No Facebook ID';
+        const pageId = post.posted_to_page || '';
+        
+        return `
         <div class="post-card card mb-3">
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-8">
-                        <h6 class="card-title">${post.title}</h6>
-                        <p class="card-text text-muted">${post.description.substring(0, 150)}${post.description.length > 150 ? '...' : ''}</p>
+                        <h6 class="card-title">${title}</h6>
+                        <p class="card-text text-muted">${description.substring(0, 150)}${description.length > 150 ? '...' : ''}</p>
                         <small class="text-muted">
-                            <i class="fas fa-calendar"></i> Posted: ${new Date(post.posted_at).toLocaleDateString()}
-                            | <i class="fas fa-facebook"></i> Post ID: ${post.facebook_post_id}
+                            <i class="fas fa-calendar"></i> Posted: ${postedAt}
+                            | <i class="fas fa-facebook"></i> Post ID: ${postId}
                         </small>
+                        ${!post.facebook_post_id ? '<br><span class="badge bg-warning text-dark">No Facebook Post ID</span>' : ''}
                     </div>
                     <div class="col-md-4 text-end">
                         <div class="btn-group-vertical w-100">
                             <button class="btn btn-primary btn-sm mb-1" 
-                                    onclick="fetchComments('${post.id}', '${post.facebook_post_id}', '${post.posted_to_page}')">
+                                    onclick="fetchComments('${post.id}', '${postId}', '${pageId}')"
+                                    ${!post.facebook_post_id ? 'disabled title="No Facebook Post ID"' : ''}>
                                 <i class="fas fa-download"></i> Fetch Comments
                             </button>
                             <button class="btn btn-info btn-sm mb-1" 
-                                    onclick="viewComments('${post.id}', '${post.facebook_post_id}')">
+                                    onclick="viewComments('${post.id}', '${postId}')"
+                                    ${!post.facebook_post_id ? 'disabled title="No Facebook Post ID"' : ''}>
                                 <i class="fas fa-eye"></i> View Comments
                             </button>
                             <button class="btn btn-warning btn-sm" 
-                                    onclick="refreshComments('${post.id}', '${post.facebook_post_id}', '${post.posted_to_page}')">
+                                    onclick="refreshComments('${post.id}', '${postId}', '${pageId}')"
+                                    ${!post.facebook_post_id ? 'disabled title="No Facebook Post ID"' : ''}>
                                 <i class="fas fa-refresh"></i> Refresh
                             </button>
                         </div>
@@ -306,7 +340,7 @@ function displayPosts(posts) {
                 </div>
             </div>
         </div>
-    `).join('');
+    `;}).join('');
     
     container.innerHTML = postsHtml;
 }

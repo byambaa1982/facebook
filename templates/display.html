@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facebook Posts & Comments Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='display.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fab fa-facebook"></i> Posts & Comments Dashboard</h1>
+                <div class="header-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-posts">-</div>
+                        <div class="stat-label">Total Posts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-comments">-</div>
+                        <div class="stat-label">Total Comments</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="posts-with-comments">-</div>
+                        <div class="stat-label">Posts with Comments</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Search and Filters -->
+        <section class="search-section">
+            <div class="search-container">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="search-input" placeholder="Search posts by title or content...">
+                    <button id="search-btn" class="search-btn">Search</button>
+                    <button id="clear-search" class="clear-btn" style="display: none;">Clear</button>
+                </div>
+                <div class="filter-options">
+                    <label class="filter-label">
+                        <input type="checkbox" id="filter-with-comments">
+                        <span>Show only posts with comments</span>
+                    </label>
+                    <label class="filter-label">
+                        <input type="checkbox" id="filter-facebook-posts">
+                        <span>Show only Facebook posts</span>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <!-- Loading indicator -->
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p>Loading posts and comments...</p>
+        </div>
+
+        <!-- Database Stats -->
+        <section class="db-stats" id="db-stats" style="display: none;">
+            <h3><i class="fas fa-database"></i> Database Statistics</h3>
+            <div class="stats-grid">
+                <div class="db-stat">
+                    <span class="db-stat-label">Total Database Keys:</span>
+                    <span class="db-stat-value" id="db-total-keys">-</span>
+                </div>
+                <div class="db-stat">
+                    <span class="db-stat-label">Content Keys:</span>
+                    <span class="db-stat-value" id="db-content-keys">-</span>
+                </div>
+                <div class="db-stat">
+                    <span class="db-stat-label">Comment Keys:</span>
+                    <span class="db-stat-value" id="db-comment-keys">-</span>
+                </div>
+                <div class="db-stat">
+                    <span class="db-stat-label">Posts with Facebook ID:</span>
+                    <span class="db-stat-value" id="db-facebook-posts">-</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Posts Container -->
+        <main class="posts-container" id="posts-container">
+            <!-- Posts will be dynamically loaded here -->
+        </main>
+
+        <!-- Error Message -->
+        <div class="error-message" id="error-message" style="display: none;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span id="error-text"></span>
+        </div>
+
+        <!-- No Results Message -->
+        <div class="no-results" id="no-results" style="display: none;">
+            <i class="fas fa-search"></i>
+            <h3>No posts found</h3>
+            <p>Try adjusting your search criteria or filters.</p>
+        </div>
+    </div>
+
+    <!-- Post Template -->
+    <template id="post-template">
+        <article class="post-card">
+            <header class="post-header">
+                <div class="post-meta">
+                    <h2 class="post-title"></h2>
+                    <div class="post-badges">
+                        <span class="badge facebook-badge" style="display: none;">
+                            <i class="fab fa-facebook"></i> Posted to Facebook
+                        </span>
+                        <span class="badge comments-badge" style="display: none;">
+                            <i class="fas fa-comments"></i> <span class="comment-count">0</span> Comments
+                        </span>
+                    </div>
+                </div>
+                <div class="post-actions">
+                    <button class="toggle-btn" title="Toggle post details">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+            </header>
+            
+            <div class="post-content">
+                <div class="post-text"></div>
+                <div class="post-details">
+                    <div class="detail-item">
+                        <strong>Post ID:</strong> <span class="post-id"></span>
+                    </div>
+                    <div class="detail-item">
+                        <strong>Facebook Post ID:</strong> <span class="facebook-post-id"></span>
+                    </div>
+                    <div class="detail-item">
+                        <strong>Created:</strong> <span class="post-created"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="comments-section">
+                <div class="comments-header">
+                    <h3><i class="fas fa-comments"></i> Comments</h3>
+                    <button class="toggle-comments-btn">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                <div class="comments-list">
+                    <!-- Comments will be loaded here -->
+                </div>
+            </div>
+        </article>
+    </template>
+
+    <!-- Comment Template -->
+    <template id="comment-template">
+        <div class="comment">
+            <div class="comment-header">
+                <div class="comment-author">
+                    <i class="fas fa-user-circle"></i>
+                    <span class="author-name"></span>
+                </div>
+                <div class="comment-time"></div>
+            </div>
+            <div class="comment-message"></div>
+            <div class="comment-meta">
+                <small class="comment-id">ID: <span></span></small>
+            </div>
+        </div>
+    </template>
+
+    <script src="{{ url_for('static', filename='display.js') }}"></script>
+</body>
+</html>

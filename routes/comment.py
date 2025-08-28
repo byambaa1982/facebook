@@ -65,30 +65,79 @@ def get_posts_from_db():
     """Get all posts from the database"""
     db = get_unqlite_db()
     posts = []
+    all_content = []
     
     try:
         # Iterate through all keys to find content entries
-        for key in db:
-            key_str = key.decode('utf-8')
-            if key_str.startswith('content:'):
-                try:
-                    value = db[key]
-                    content_data = json.loads(value.decode('utf-8'))
-                    
-                    # Only include posts that have been posted to Facebook
-                    if content_data.get('posted_to_facebook') and content_data.get('facebook_post_id'):
+        for raw_key in db:
+            try:
+                # Handle different key types that unqlite might return
+                if isinstance(raw_key, tuple):
+                    # Sometimes unqlite returns tuples, get the first element
+                    key_bytes = raw_key[0] if raw_key else b''
+                elif isinstance(raw_key, bytes):
+                    key_bytes = raw_key
+                elif isinstance(raw_key, str):
+                    key_bytes = raw_key.encode('utf-8')
+                else:
+                    # Try to convert to bytes
+                    key_bytes = str(raw_key).encode('utf-8')
+                
+                # Decode to string
+                if hasattr(key_bytes, 'decode'):
+                    key_str = key_bytes.decode('utf-8')
+                else:
+                    key_str = str(key_bytes)
+                
+                if key_str.startswith('content:'):
+                    try:
+                        # Use the raw key to access the database value
+                        value = db[raw_key]
+                        
+                        # Handle value decoding
+                        if hasattr(value, 'decode'):
+                            value_str = value.decode('utf-8')
+                        else:
+                            value_str = str(value)
+                        
+                        content_data = json.loads(value_str)
+                        
+                        # Track all content for debugging
+                        all_content.append({
+                            'key': key_str,
+                            'has_posted_flag': content_data.get('posted_to_facebook', False),
+                            'has_facebook_id': bool(content_data.get('facebook_post_id')),
+                            'title': content_data.get('title', 'No title')
+                        })
+                        
+                        # Include ALL posts for now to see what's available
                         posts.append({
                             'id': key_str.replace('content:', ''),
-                            'title': content_data.get('title', ''),
-                            'description': content_data.get('description', ''),
-                            'facebook_post_id': content_data.get('facebook_post_id'),
-                            'posted_to_page': content_data.get('posted_to_page'),
-                            'posted_at': content_data.get('posted_at'),
-                            'content_type': content_data.get('content_type', 'text')
+                            'title': content_data.get('title', 'Untitled'),
+                            'content': content_data.get('description', '') or content_data.get('content', '') or content_data.get('topic', ''),
+                            'facebook_post_id': content_data.get('facebook_post_id', ''),
+                            'posted_to_page': content_data.get('posted_to_page', ''),
+                            'posted_at': content_data.get('posted_at', ''),
+                            'created_at': content_data.get('created_at', ''),
+                            'content_type': content_data.get('content_type', 'text'),
+                            'posted_to_facebook': content_data.get('posted_to_facebook', False)
                         })
-                except Exception as e:
-                    print(f"Error parsing content data for key {key_str}: {e}")
-                    continue
+                        
+                    except KeyError as e:
+                        print(f"Key not found in database for {key_str}: {e}")
+                        continue
+                    except Exception as e:
+                        print(f"Error parsing content data for key {key_str}: {e}")
+                        continue
+            except Exception as e:
+                print(f"Error processing key {raw_key}: {e}")
+                continue
+        
+        # Debug output
+        print(f"DEBUG: Found {len(all_content)} total content items")
+        print(f"DEBUG: Found {len(posts)} posted content items")
+        for item in all_content[:3]:  # Show first 3 items for debugging
+            print(f"DEBUG: {item}")
                     
     except Exception as e:
         print(f"Error getting posts from database: {e}")
@@ -216,10 +265,15 @@ def get_comments_from_db(content_id, post_id=None):
 def list_posted_content():
     """API endpoint to list all posted content"""
     try:
+        print("DEBUG: API endpoint /admin-panel/api/posts called")
         posts = get_posts_from_db()
-        return jsonify({'success': True, 'posts': posts})
+        print(f"DEBUG: Returning {len(posts)} posts")
+        return jsonify({'success': True, 'posts': posts, 'count': len(posts)})
         
     except Exception as e:
+        print(f"ERROR in list_posted_content: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @bp_comment.route('/admin-panel/api/content/<content_id>/comments/fetch', methods=['POST'])

@@ -439,16 +439,24 @@ def analyze_comments_sentiment():
         
         from review import CommentSentimentAnalyzer
         
-        # Get force parameter
+        # Get force parameter - default to False so it only analyzes new comments
         force_reanalyze = request.args.get('force', 'false').lower() == 'true'
         
         # Initialize analyzer and run analysis
         analyzer = CommentSentimentAnalyzer()
         results = analyzer.analyze_all_comments(force_reanalyze=force_reanalyze)
         
+        # Customize message based on results
+        if results['analyzed'] == 0 and results['skipped'] > 0:
+            message = f"All {results['skipped']} comments already have sentiment labels"
+        elif results['analyzed'] > 0:
+            message = f"Sentiment analysis completed! Analyzed {results['analyzed']} new comments"
+        else:
+            message = "No comments found to analyze"
+        
         return jsonify({
             'success': True,
-            'message': 'Sentiment analysis completed',
+            'message': message,
             'results': results
         })
         

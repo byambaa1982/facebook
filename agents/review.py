@@ -273,14 +273,13 @@ class CommentSentimentAnalyzer:
             
             print(f"\n[{i}/{len(comments)}] Processing comment {comment_id}")
             
-            # Check if already analyzed
-            if not force_reanalyze:
-                existing_sentiment = self.get_sentiment_from_db(comment_key, comment_id)
-                if existing_sentiment:
-                    print(f"⏭️ Skipping - already analyzed as '{existing_sentiment.get('sentiment', 'unknown')}'")
-                    stats["skipped"] += 1
-                    stats["sentiments"][existing_sentiment.get("sentiment", "neutral")] += 1
-                    continue
+            # Check if already analyzed (unless force_reanalyze is True)
+            existing_sentiment = self.get_sentiment_from_db(comment_key, comment_id)
+            if existing_sentiment and not force_reanalyze:
+                print(f"⏭️ Skipping - already analyzed as '{existing_sentiment.get('sentiment', 'unknown')}'")
+                stats["skipped"] += 1
+                stats["sentiments"][existing_sentiment.get("sentiment", "neutral")] += 1
+                continue
             
             # Analyze sentiment
             print(f"💭 Analyzing: \"{message[:50]}{'...' if len(message) > 50 else ''}\"")

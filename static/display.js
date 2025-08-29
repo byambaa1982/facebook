@@ -437,16 +437,28 @@ class PostsDisplay {
             if (data.success) {
                 const results = data.results;
                 
-                // Show success message
-                this.showNotification(
-                    `✅ Sentiment analysis completed! Analyzed ${results.analyzed} comments, skipped ${results.skipped}`, 
-                    'success'
-                );
-                
-                // Automatically show sentiment stats after analysis
-                setTimeout(() => {
-                    this.showSentimentStats();
-                }, 1000);
+                // Show appropriate message based on results
+                if (results.analyzed === 0 && results.skipped > 0) {
+                    this.showNotification(
+                        `ℹ️ All ${results.skipped} comments already have sentiment labels`, 
+                        'info'
+                    );
+                } else if (results.analyzed > 0) {
+                    this.showNotification(
+                        `✅ Analyzed ${results.analyzed} new comments! (${results.skipped} already labeled)`, 
+                        'success'
+                    );
+                    
+                    // Automatically show sentiment stats after new analysis
+                    setTimeout(() => {
+                        this.showSentimentStats();
+                    }, 1000);
+                } else {
+                    this.showNotification(
+                        'ℹ️ No comments found to analyze', 
+                        'info'
+                    );
+                }
                 
             } else {
                 this.showNotification(`❌ Error: ${data.error}`, 'error');

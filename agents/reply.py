@@ -284,6 +284,107 @@ class CommentReplyAgent:
         except Exception as e:
             return {'success': False, 'error': str(e)}
     
+    def delete_comment_from_db(self, comment_id, comment_key):
+        """
+        Delete a comment and its related data from the database
+        
+        Args:
+            comment_id (str): The Facebook comment ID
+            comment_key (str): The database key for the comment
+        """
+        db = get_unqlite_db()
+        deleted_keys = []
+        
+        try:
+            # Find and delete all keys related to this comment
+            keys_to_delete = []
+            
+            for raw_key in db:
+                try:
+                    # Handle different key types
+                    if isinstance(raw_key, tuple):
+                        key_bytes = raw_key[0] if raw_key else b''
+                    elif isinstance(raw_key, bytes):
+                        key_bytes = raw_key
+                    elif isinstance(raw_key, str):
+                        key_bytes = raw_key.encode('utf-8')
+                    else:
+                        key_bytes = str(raw_key).encode('utf-8')
+                    
+                    # Decode key to string
+                    if hasattr(key_bytes, 'decode'):
+                        key_str = key_bytes.decode('utf-8')
+                    else:
+                        key_str = str(key_bytes)
+                    
+                    # Collect keys related to this comment
+                    if comment_id in key_str:
+                        keys_to_delete.append(key_str)
+                        
+                except Exception as e:
+                    continue
+            
+            # Delete the collected keys
+            for key in keys_to_delete:
+                try:
+                    if key.encode('utf-8') in db:
+                        del db[key.encode('utf-8')]
+                        deleted_keys.append(key)
+                    elif key in db:
+                        del db[key]
+                        deleted_keys.append(key)
+                except Exception as e:
+                    print(f"Error deleting key {key}: {e}")
+            
+            db.commit()
+            
+            if deleted_keys:
+                print(f"🗑️ Deleted {len(deleted_keys)} database entries for comment {comment_id}")
+                for key in deleted_keys:
+                    print(f"   - {key}")
+            
+            return len(deleted_keys) > 0
+            
+        except Exception as e:
+            print(f"Error deleting comment from database: {e}")
+            return False
+        finally:
+            db.close()
+    
+    def is_comment_not_found_error(self, error_result):
+        """
+        Check if the error indicates the comment doesn't exist on Facebook
+        
+        Args:
+            error_result (dict): The error result from Facebook API
+            
+        Returns:
+            bool: True if comment doesn't exist, False otherwise
+        """
+        if not isinstance(error_result.get('error'), dict):
+            return False
+        
+        error_message = error_result['error'].get('message', '').lower()
+        error_code = error_result['error'].get('code')
+        error_subcode = error_result['error'].get('error_subcode')
+        
+        # Check for common "not found" indicators
+        not_found_indicators = [
+            'does not exist',
+            'cannot be loaded',
+            'missing permissions',
+            'does not support this operation'
+        ]
+        
+        # Facebook error codes that typically indicate missing/deleted content
+        not_found_codes = [100, 803]  # 100 = Invalid parameter, 803 = Some of the aliases you requested do not exist
+        not_found_subcodes = [33]     # 33 = Object does not exist
+        
+        message_indicates_not_found = any(indicator in error_message for indicator in not_found_indicators)
+        code_indicates_not_found = error_code in not_found_codes or error_subcode in not_found_subcodes
+        
+        return message_indicates_not_found or code_indicates_not_found
+
     def store_reply_in_db(self, comment_id, comment_key, reply_data):
         """
         Store reply information in the database
@@ -342,6 +443,7 @@ class CommentReplyAgent:
             "processed": len(comments_to_process),
             "replied": 0,
             "skipped": 0,
+            "cleaned_up": 0,
             "errors": 0,
             "reply_types": {"question": 0, "compliment": 0, "general": 0}
         }
@@ -399,8 +501,19 @@ class CommentReplyAgent:
                     stats["reply_types"][reply_type] += 1
                     
             else:
-                print(f"❌ Failed to post reply: {facebook_result['error']}")
-                stats["errors"] += 1
+                # Check if this is a "comment not found" error
+                if 'error' in facebook_result and self.is_comment_not_found_error({'error': {'message': facebook_result['error']}}):
+                    print(f"🗑️ Comment not found on Facebook - cleaning up database")
+                    
+                    if self.delete_comment_from_db(comment_id, comment['comment_key']):
+                        print(f"✅ Orphaned comment data cleaned up successfully")
+                        stats["cleaned_up"] += 1
+                    else:
+                        print(f"❌ Failed to clean up orphaned comment data")
+                        stats["errors"] += 1
+                else:
+                    print(f"❌ Failed to post reply: {facebook_result['error']}")
+                    stats["errors"] += 1
         
         print("\n" + "=" * 50)
         print("📈 REPLY SUMMARY")
@@ -408,6 +521,7 @@ class CommentReplyAgent:
         print(f"Total comments found: {stats['total']}")
         print(f"Comments processed: {stats['processed']}")
         print(f"Successfully replied: {stats['replied']}")
+        print(f"Cleaned up orphaned: {stats['cleaned_up']}")
         print(f"Errors: {stats['errors']}")
         print(f"\nReply types:")
         print(f"  Questions answered: {stats['reply_types']['question']}")
@@ -416,6 +530,121 @@ class CommentReplyAgent:
         
         return stats
 
+    def cleanup_orphaned_comments(self):
+        """
+        Check all comments in database and remove those that no longer exist on Facebook
+        
+        Returns:
+            dict: Summary of cleanup results
+        """
+        print("🧹 Starting orphaned comment cleanup...")
+        print("=" * 50)
+        
+        # Get all comments with sentiment data
+        all_comments = self.get_all_comments_from_sentiment_db()
+        
+        if not all_comments:
+            print("❌ No comments found in database")
+            return {"total": 0, "checked": 0, "deleted": 0, "errors": 0}
+        
+        print(f"📊 Found {len(all_comments)} comments to check")
+        
+        stats = {
+            "total": len(all_comments),
+            "checked": 0,
+            "deleted": 0,
+            "errors": 0
+        }
+        
+        for i, comment in enumerate(all_comments, 1):
+            comment_id = comment['comment_id']
+            comment_key = comment['comment_key']
+            
+            print(f"\n[{i}/{len(all_comments)}] Checking comment {comment_id}")
+            
+            # Try to reply with empty string to test if comment exists
+            test_result = self.post_reply_to_facebook(comment_id, "")
+            stats["checked"] += 1
+            
+            if not test_result['success'] and self.is_comment_not_found_error({'error': {'message': test_result['error']}}):
+                print(f"🗑️ Comment not found on Facebook - deleting from database")
+                
+                if self.delete_comment_from_db(comment_id, comment_key):
+                    print(f"✅ Orphaned comment deleted successfully")
+                    stats["deleted"] += 1
+                else:
+                    print(f"❌ Failed to delete orphaned comment")
+                    stats["errors"] += 1
+            else:
+                print(f"✅ Comment exists on Facebook")
+        
+        print("\n" + "=" * 50)
+        print("📈 CLEANUP SUMMARY")
+        print("=" * 50)
+        print(f"Total comments: {stats['total']}")
+        print(f"Comments checked: {stats['checked']}")
+        print(f"Orphaned comments deleted: {stats['deleted']}")
+        print(f"Errors: {stats['errors']}")
+        
+        return stats
+    
+    def get_all_comments_from_sentiment_db(self):
+        """Get all comments that have sentiment data"""
+        db = get_unqlite_db()
+        comments = []
+        
+        try:
+            for raw_key in db:
+                try:
+                    # Handle different key types
+                    if isinstance(raw_key, tuple):
+                        key_bytes = raw_key[0] if raw_key else b''
+                        value_bytes = raw_key[1] if len(raw_key) > 1 else b''
+                    elif isinstance(raw_key, bytes):
+                        key_bytes = raw_key
+                        value_bytes = db[raw_key]
+                    elif isinstance(raw_key, str):
+                        key_bytes = raw_key.encode('utf-8')
+                        value_bytes = db[raw_key]
+                    else:
+                        key_bytes = str(raw_key).encode('utf-8')
+                        value_bytes = db[raw_key]
+                    
+                    # Decode key to string
+                    if hasattr(key_bytes, 'decode'):
+                        key_str = key_bytes.decode('utf-8')
+                    else:
+                        key_str = str(key_bytes)
+                    
+                    # Process sentiment keys
+                    if key_str.startswith('sentiment:'):
+                        if hasattr(value_bytes, 'decode'):
+                            value_str = value_bytes.decode('utf-8')
+                        else:
+                            value_str = str(value_bytes)
+                        
+                        sentiment_data = json.loads(value_str)
+                        comment_id = sentiment_data.get('comment_id')
+                        
+                        if comment_id:
+                            comments.append({
+                                'comment_id': comment_id,
+                                'comment_key': sentiment_data.get('comment_key'),
+                                'message': sentiment_data.get('message', ''),
+                                'sentiment': sentiment_data.get('sentiment'),
+                                'sentiment_data': sentiment_data
+                            })
+                            
+                except Exception as e:
+                    continue
+                    
+        except Exception as e:
+            print(f"Error retrieving comments: {e}")
+        finally:
+            db.close()
+        
+        return comments
+
 def main():
     """Main function to run comment reply agent"""
     import argparse
@@ -423,6 +652,7 @@ def main():
     parser = argparse.ArgumentParser(description="Reply to Facebook comments automatically")
     parser.add_argument("--max-replies", type=int, default=10, help="Maximum number of replies to post")
     parser.add_argument("--test", action="store_true", help="Test reply generation without posting")
+    parser.add_argument("--cleanup", action="store_true", help="Clean up orphaned comments from database")
     
     args = parser.parse_args()
     
@@ -443,6 +673,9 @@ def main():
             print(f"Type: {result.get('type', 'unknown')}")
             print(f"Reply: \"{result.get('reply', 'N/A')}\"")
             print("-" * 40)
+    elif args.cleanup:
+        # Clean up orphaned comments
+        agent.cleanup_orphaned_comments()
     else:
         # Reply to actual comments
         agent.reply_to_comments(max_replies=args.max_replies)

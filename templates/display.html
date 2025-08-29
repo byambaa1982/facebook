@@ -56,6 +56,12 @@
                     <button id="show-sentiment-stats" class="sentiment-btn" title="Show sentiment analysis statistics">
                         <i class="fas fa-chart-pie"></i> Sentiment Stats
                     </button>
+                    <button id="reply-to-comments-btn" class="reply-btn" title="Automatically reply to positive and neutral comments">
+                        <i class="fas fa-reply"></i> Auto Reply
+                    </button>
+                    <button id="show-reply-stats" class="reply-btn" title="Show reply statistics">
+                        <i class="fas fa-chart-bar"></i> Reply Stats
+                    </button>
                 </div>
             </div>
         </section>
@@ -119,6 +125,41 @@
                     <div class="sentiment-info">
                         <span class="sentiment-label">Total Analyzed</span>
                         <span class="sentiment-value" id="sentiment-total">-</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Reply Stats -->
+        <section class="reply-stats" id="reply-stats" style="display: none;">
+            <h3><i class="fas fa-reply"></i> Reply Statistics</h3>
+            <div class="stats-grid">
+                <div class="reply-stat questions">
+                    <div class="reply-icon"><i class="fas fa-question-circle"></i></div>
+                    <div class="reply-info">
+                        <span class="reply-label">Questions Answered</span>
+                        <span class="reply-value" id="reply-questions">-</span>
+                    </div>
+                </div>
+                <div class="reply-stat compliments">
+                    <div class="reply-icon"><i class="fas fa-heart"></i></div>
+                    <div class="reply-info">
+                        <span class="reply-label">Compliments Appreciated</span>
+                        <span class="reply-value" id="reply-compliments">-</span>
+                    </div>
+                </div>
+                <div class="reply-stat general">
+                    <div class="reply-icon"><i class="fas fa-comment"></i></div>
+                    <div class="reply-info">
+                        <span class="reply-label">General Responses</span>
+                        <span class="reply-value" id="reply-general">-</span>
+                    </div>
+                </div>
+                <div class="reply-stat total">
+                    <div class="reply-icon"><i class="fas fa-reply-all"></i></div>
+                    <div class="reply-info">
+                        <span class="reply-label">Total Replies</span>
+                        <span class="reply-value" id="reply-total">-</span>
                     </div>
                 </div>
             </div>
@@ -212,6 +253,9 @@
                 <small class="comment-id">ID: <span></span></small>
                 <small class="comment-sentiment" style="display: none;">
                     <span class="sentiment-label"></span>
+                </small>
+                <small class="comment-replied" style="display: none;">
+                    <span class="replied-label">✅ Replied</span>
                 </small>
             </div>
         </div>

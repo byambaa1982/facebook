@@ -63,6 +63,15 @@ class PostsDisplay {
         document.getElementById('show-sentiment-stats').addEventListener('click', () => {
             this.showSentimentStats();
         });
+        
+        // Reply buttons
+        document.getElementById('reply-to-comments-btn').addEventListener('click', () => {
+            this.replyToComments();
+        });
+        
+        document.getElementById('show-reply-stats').addEventListener('click', () => {
+            this.showReplyStats();
+        });
     }
     
     async loadData() {
@@ -549,6 +558,100 @@ class PostsDisplay {
                 notification.parentNode.removeChild(notification);
             }
         }, 300);
+    }
+
+    async replyToComments(maxReplies = 10) {
+        const button = document.getElementById('reply-to-comments-btn');
+        const originalText = button.innerHTML;
+        
+        try {
+            // Show loading state
+            button.disabled = true;
+            button.classList.add('loading');
+            button.innerHTML = '<i class="fas fa-reply"></i> Replying...';
+            
+            // Call reply API
+            const url = `/api/reply-to-comments?max_replies=${maxReplies}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data.success) {
+                const results = data.results;
+                
+                // Show appropriate message based on results
+                if (results.replied === 0 && results.total === 0) {
+                    this.showNotification(
+                        'ℹ️ No comments found that need replies', 
+                        'info'
+                    );
+                } else if (results.replied > 0) {
+                    this.showNotification(
+                        `✅ Successfully replied to ${results.replied} comments! (${results.reply_types.question} questions, ${results.reply_types.compliment} compliments, ${results.reply_types.general} general)`, 
+                        'success'
+                    );
+                    
+                    // Automatically show reply stats after new replies
+                    setTimeout(() => {
+                        this.showReplyStats();
+                    }, 1000);
+                } else {
+                    this.showNotification(
+                        `⚠️ Found ${results.total} comments but couldn't reply to any`, 
+                        'info'
+                    );
+                }
+                
+            } else {
+                this.showNotification(`❌ Error: ${data.error}`, 'error');
+            }
+            
+        } catch (error) {
+            console.error('Error replying to comments:', error);
+            this.showNotification('❌ Failed to reply to comments', 'error');
+        } finally {
+            // Reset button state
+            button.disabled = false;
+            button.classList.remove('loading');
+            button.innerHTML = originalText;
+        }
+    }
+    
+    async showReplyStats() {
+        try {
+            // Fetch reply statistics
+            const response = await fetch('/api/reply-stats');
+            const data = await response.json();
+            
+            if (data.success) {
+                const stats = data.stats;
+                
+                // Update reply stats display
+                document.getElementById('reply-questions').textContent = stats.reply_types.question;
+                document.getElementById('reply-compliments').textContent = stats.reply_types.compliment;
+                document.getElementById('reply-general').textContent = stats.reply_types.general;
+                document.getElementById('reply-total').textContent = stats.total_replies;
+                
+                // Show reply stats section
+                const replySection = document.getElementById('reply-stats');
+                replySection.style.display = 'block';
+                
+                // Smooth scroll to reply stats
+                replySection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                
+                // Add a highlight animation
+                replySection.style.animation = 'highlight 2s ease-in-out';
+                setTimeout(() => {
+                    replySection.style.animation = '';
+                }, 2000);
+                
+            } else {
+                this.showNotification(`❌ Error loading reply stats: ${data.error}`, 'error');
+            }
+            
+        } catch (error) {
+            console.error('Error fetching reply stats:', error);
+            this.showNotification('❌ Failed to load reply statistics', 'error');
+        }
     }
 
     formatDate(dateString) {

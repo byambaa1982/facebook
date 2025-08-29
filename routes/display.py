@@ -610,3 +610,120 @@ def get_comment_sentiment(comment_id):
             'success': False,
             'error': str(e)
         }), 500
+
+@display_bp.route('/api/reply-to-comments')
+def reply_to_comments():
+    """Automatically reply to positive and neutral comments"""
+    try:
+        # Import the reply agent
+        import sys
+        import os
+        agents_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'agents')
+        sys.path.append(agents_path)
+        
+        from reply import CommentReplyAgent
+        
+        # Get max_replies parameter
+        max_replies = int(request.args.get('max_replies', 10))
+        
+        # Initialize agent and run replies
+        agent = CommentReplyAgent()
+        results = agent.reply_to_comments(max_replies=max_replies)
+        
+        # Customize message based on results
+        if results['replied'] == 0 and results['total'] == 0:
+            message = "No comments found that need replies"
+        elif results['replied'] == 0 and results['total'] > 0:
+            message = f"Found {results['total']} comments but encountered errors posting replies"
+        else:
+            message = f"Successfully replied to {results['replied']} comments!"
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'results': results
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@display_bp.route('/api/reply-stats')
+def get_reply_statistics():
+    """Get reply statistics"""
+    try:
+        db = get_unqlite_db()
+        
+        stats = {
+            'total_replies': 0,
+            'reply_types': {'question': 0, 'compliment': 0, 'general': 0},
+            'by_post': {}
+        }
+        
+        try:
+            for raw_key in db:
+                try:
+                    # Handle different key types
+                    if isinstance(raw_key, tuple):
+                        key_bytes = raw_key[0] if raw_key else b''
+                        value_bytes = raw_key[1] if len(raw_key) > 1 else b''
+                    elif isinstance(raw_key, bytes):
+                        key_bytes = raw_key
+                        value_bytes = db[raw_key]
+                    elif isinstance(raw_key, str):
+                        key_bytes = raw_key.encode('utf-8')
+                        value_bytes = db[raw_key]
+                    else:
+                        key_bytes = str(raw_key).encode('utf-8')
+                        value_bytes = db[raw_key]
+                    
+                    # Decode key to string
+                    if hasattr(key_bytes, 'decode'):
+                        key_str = key_bytes.decode('utf-8')
+                    else:
+                        key_str = str(key_bytes)
+                    
+                    # Process reply keys
+                    if key_str.startswith('reply:'):
+                        # Decode value
+                        if hasattr(value_bytes, 'decode'):
+                            value_str = value_bytes.decode('utf-8')
+                        else:
+                            value_str = str(value_bytes)
+                        
+                        reply_data = json.loads(value_str)
+                        reply_type = reply_data.get('reply_type', 'general')
+                        
+                        stats['total_replies'] += 1
+                        stats['reply_types'][reply_type] += 1
+                        
+                        # Extract post info from comment key
+                        comment_key = reply_data.get('comment_key', '')
+                        if comment_key:
+                            content_id = reply_data.get('comment_key', '').split(':')[1] if ':' in comment_key else 'unknown'
+                            if content_id not in stats['by_post']:
+                                stats['by_post'][content_id] = {'question': 0, 'compliment': 0, 'general': 0, 'total': 0}
+                            
+                            stats['by_post'][content_id][reply_type] += 1
+                            stats['by_post'][content_id]['total'] += 1
+                        
+                except Exception as e:
+                    continue
+                    
+        except Exception as e:
+            print(f"Error processing reply stats: {e}")
+        finally:
+            db.close()
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

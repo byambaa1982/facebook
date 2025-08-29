@@ -49,6 +49,14 @@
                         <span>Show only Facebook posts</span>
                     </label>
                 </div>
+                <div class="sentiment-section">
+                    <button id="analyze-sentiment-btn" class="sentiment-btn" title="Analyze sentiment of all comments using AI">
+                        <i class="fas fa-brain"></i> Analyze Sentiment
+                    </button>
+                    <button id="show-sentiment-stats" class="sentiment-btn" title="Show sentiment analysis statistics">
+                        <i class="fas fa-chart-pie"></i> Sentiment Stats
+                    </button>
+                </div>
             </div>
         </section>
 
@@ -77,6 +85,41 @@
                 <div class="db-stat">
                     <span class="db-stat-label">Posts with Facebook ID:</span>
                     <span class="db-stat-value" id="db-facebook-posts">-</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sentiment Stats -->
+        <section class="sentiment-stats" id="sentiment-stats" style="display: none;">
+            <h3><i class="fas fa-chart-pie"></i> Sentiment Analysis Statistics</h3>
+            <div class="stats-grid">
+                <div class="sentiment-stat positive">
+                    <div class="sentiment-icon"><i class="fas fa-smile"></i></div>
+                    <div class="sentiment-info">
+                        <span class="sentiment-label">Positive</span>
+                        <span class="sentiment-value" id="sentiment-positive">-</span>
+                    </div>
+                </div>
+                <div class="sentiment-stat negative">
+                    <div class="sentiment-icon"><i class="fas fa-frown"></i></div>
+                    <div class="sentiment-info">
+                        <span class="sentiment-label">Negative</span>
+                        <span class="sentiment-value" id="sentiment-negative">-</span>
+                    </div>
+                </div>
+                <div class="sentiment-stat neutral">
+                    <div class="sentiment-icon"><i class="fas fa-meh"></i></div>
+                    <div class="sentiment-info">
+                        <span class="sentiment-label">Neutral</span>
+                        <span class="sentiment-value" id="sentiment-neutral">-</span>
+                    </div>
+                </div>
+                <div class="sentiment-stat total">
+                    <div class="sentiment-icon"><i class="fas fa-comments"></i></div>
+                    <div class="sentiment-info">
+                        <span class="sentiment-label">Total Analyzed</span>
+                        <span class="sentiment-value" id="sentiment-total">-</span>
+                    </div>
                 </div>
             </div>
         </section>
@@ -167,6 +210,9 @@
             <div class="comment-message"></div>
             <div class="comment-meta">
                 <small class="comment-id">ID: <span></span></small>
+                <small class="comment-sentiment" style="display: none;">
+                    <span class="sentiment-label"></span>
+                </small>
             </div>
         </div>
     </template>

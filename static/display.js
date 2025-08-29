@@ -54,6 +54,15 @@ class PostsDisplay {
             this.filters.facebookPosts = e.target.checked;
             this.applyFilters();
         });
+        
+        // Sentiment analysis buttons
+        document.getElementById('analyze-sentiment-btn').addEventListener('click', () => {
+            this.analyzeSentiment();
+        });
+        
+        document.getElementById('show-sentiment-stats').addEventListener('click', () => {
+            this.showSentimentStats();
+        });
     }
     
     async loadData() {
@@ -291,13 +300,28 @@ class PostsDisplay {
         const timeElement = commentElement.querySelector('.comment-time');
         const messageElement = commentElement.querySelector('.comment-message');
         const idElement = commentElement.querySelector('.comment-id span');
+        const sentimentElement = commentElement.querySelector('.comment-sentiment');
         
         authorElement.textContent = comment.author_name || comment.from?.name || 'Unknown Author';
         timeElement.textContent = this.formatDate(comment.created_time);
         messageElement.textContent = comment.message || 'No message content';
         idElement.textContent = comment.comment_id || comment.id || 'Unknown';
         
+        // Display sentiment if available
+        if (comment.sentiment) {
+            this.displayCommentSentiment(sentimentElement, comment.sentiment);
+        }
+        
         return commentElement;
+    }
+    
+    displayCommentSentiment(sentimentElement, sentimentData) {
+        const sentimentLabel = sentimentElement.querySelector('.sentiment-label');
+        const sentiment = sentimentData.sentiment || 'neutral';
+        
+        sentimentLabel.textContent = sentiment;
+        sentimentLabel.className = `sentiment-label ${sentiment}`;
+        sentimentElement.style.display = 'block';
     }
     
     async refreshPostComments(postId, refreshBtn, postElement) {
@@ -393,6 +417,126 @@ class PostsDisplay {
             button.style.borderColor = originalColor;
             button.style.color = '';
         }, 3000);
+    }
+
+    async analyzeSentiment(forceReanalyze = false) {
+        const button = document.getElementById('analyze-sentiment-btn');
+        const originalText = button.innerHTML;
+        
+        try {
+            // Show loading state
+            button.disabled = true;
+            button.classList.add('loading');
+            button.innerHTML = '<i class="fas fa-brain"></i> Analyzing...';
+            
+            // Call sentiment analysis API
+            const url = `/api/analyze-sentiment${forceReanalyze ? '?force=true' : ''}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data.success) {
+                const results = data.results;
+                
+                // Show success message
+                this.showNotification(
+                    `✅ Sentiment analysis completed! Analyzed ${results.analyzed} comments, skipped ${results.skipped}`, 
+                    'success'
+                );
+                
+                // Automatically show sentiment stats after analysis
+                setTimeout(() => {
+                    this.showSentimentStats();
+                }, 1000);
+                
+            } else {
+                this.showNotification(`❌ Error: ${data.error}`, 'error');
+            }
+            
+        } catch (error) {
+            console.error('Error analyzing sentiment:', error);
+            this.showNotification('❌ Failed to analyze sentiment', 'error');
+        } finally {
+            // Reset button state
+            button.disabled = false;
+            button.classList.remove('loading');
+            button.innerHTML = originalText;
+        }
+    }
+    
+    async showSentimentStats() {
+        try {
+            // Fetch sentiment statistics
+            const response = await fetch('/api/sentiment-stats');
+            const data = await response.json();
+            
+            if (data.success) {
+                const stats = data.stats;
+                
+                // Update sentiment stats display
+                document.getElementById('sentiment-positive').textContent = stats.sentiments.positive;
+                document.getElementById('sentiment-negative').textContent = stats.sentiments.negative;
+                document.getElementById('sentiment-neutral').textContent = stats.sentiments.neutral;
+                document.getElementById('sentiment-total').textContent = stats.total_analyzed;
+                
+                // Show sentiment stats section
+                const sentimentSection = document.getElementById('sentiment-stats');
+                sentimentSection.style.display = 'block';
+                
+                // Smooth scroll to sentiment stats
+                sentimentSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                
+                // Add a highlight animation
+                sentimentSection.style.animation = 'highlight 2s ease-in-out';
+                setTimeout(() => {
+                    sentimentSection.style.animation = '';
+                }, 2000);
+                
+            } else {
+                this.showNotification(`❌ Error loading sentiment stats: ${data.error}`, 'error');
+            }
+            
+        } catch (error) {
+            console.error('Error fetching sentiment stats:', error);
+            this.showNotification('❌ Failed to load sentiment statistics', 'error');
+        }
+    }
+    
+    showNotification(message, type = 'info') {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <span>${message}</span>
+            <button class="notification-close">&times;</button>
+        `;
+        
+        // Add to page
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 5 seconds
+        const autoRemove = setTimeout(() => {
+            this.removeNotification(notification);
+        }, 5000);
+        
+        // Close button functionality
+        notification.querySelector('.notification-close').addEventListener('click', () => {
+            clearTimeout(autoRemove);
+            this.removeNotification(notification);
+        });
+        
+        // Show with animation
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 100);
+    }
+    
+    removeNotification(notification) {
+        notification.classList.add('hide');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
     }
 
     formatDate(dateString) {

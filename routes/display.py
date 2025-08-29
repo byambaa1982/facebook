@@ -61,6 +61,72 @@ def fetch_and_store_comments_for_post(facebook_post_id):
     except Exception as e:
         return {'success': False, 'error': str(e)}
 
+def enhance_comments_with_sentiment(comments):
+    """Enhance comments list with sentiment data"""
+    db = get_unqlite_db()
+    enhanced_comments = []
+    
+    try:
+        # Build a sentiment lookup dictionary
+        sentiment_lookup = {}
+        
+        for raw_key in db:
+            try:
+                # Handle different key types
+                if isinstance(raw_key, tuple):
+                    key_bytes = raw_key[0] if raw_key else b''
+                    value_bytes = raw_key[1] if len(raw_key) > 1 else b''
+                elif isinstance(raw_key, bytes):
+                    key_bytes = raw_key
+                    value_bytes = db[raw_key]
+                elif isinstance(raw_key, str):
+                    key_bytes = raw_key.encode('utf-8')
+                    value_bytes = db[raw_key]
+                else:
+                    key_bytes = str(raw_key).encode('utf-8')
+                    value_bytes = db[raw_key]
+                
+                # Decode key to string
+                if hasattr(key_bytes, 'decode'):
+                    key_str = key_bytes.decode('utf-8')
+                else:
+                    key_str = str(key_bytes)
+                
+                # Process sentiment keys
+                if key_str.startswith('sentiment:'):
+                    # Decode value
+                    if hasattr(value_bytes, 'decode'):
+                        value_str = value_bytes.decode('utf-8')
+                    else:
+                        value_str = str(value_bytes)
+                    
+                    sentiment_data = json.loads(value_str)
+                    comment_id = sentiment_data.get('comment_id')
+                    
+                    if comment_id:
+                        sentiment_lookup[comment_id] = sentiment_data
+                        
+            except Exception as e:
+                continue
+        
+        # Enhance comments with sentiment data
+        for comment in comments:
+            enhanced_comment = comment.copy()
+            comment_id = comment.get('id') or comment.get('comment_id')
+            
+            if comment_id and comment_id in sentiment_lookup:
+                enhanced_comment['sentiment'] = sentiment_lookup[comment_id]
+            
+            enhanced_comments.append(enhanced_comment)
+            
+    except Exception as e:
+        print(f"Error enhancing comments with sentiment: {e}")
+        return comments  # Return original comments if error
+    finally:
+        db.close()
+    
+    return enhanced_comments
+
 @display_bp.route('/display')
 def display_posts():
     """Display the main page showing all posts and comments"""
@@ -99,6 +165,9 @@ def get_posts_with_comments():
             }
             
             if comments_data:
+                # Enhance comments with sentiment data
+                enhanced_comments = enhance_comments_with_sentiment(comments_data.get('comments', []))
+                comments_data['comments'] = enhanced_comments
                 post_data['comments'] = comments_data
             
             posts_with_comments.append(post_data)
@@ -350,6 +419,182 @@ def search_posts():
             'query': query,
             'total_results': len(matching_posts),
             'posts': matching_posts
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@display_bp.route('/api/analyze-sentiment')
+def analyze_comments_sentiment():
+    """Analyze sentiment of all comments using OpenAI"""
+    try:
+        # Import the sentiment analyzer
+        import sys
+        import os
+        agents_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'agents')
+        sys.path.append(agents_path)
+        
+        from review import CommentSentimentAnalyzer
+        
+        # Get force parameter
+        force_reanalyze = request.args.get('force', 'false').lower() == 'true'
+        
+        # Initialize analyzer and run analysis
+        analyzer = CommentSentimentAnalyzer()
+        results = analyzer.analyze_all_comments(force_reanalyze=force_reanalyze)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Sentiment analysis completed',
+            'results': results
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@display_bp.route('/api/sentiment-stats')
+def get_sentiment_statistics():
+    """Get sentiment analysis statistics"""
+    try:
+        db = get_unqlite_db()
+        
+        stats = {
+            'total_analyzed': 0,
+            'sentiments': {'positive': 0, 'negative': 0, 'neutral': 0},
+            'by_post': {}
+        }
+        
+        try:
+            for raw_key in db:
+                try:
+                    # Handle different key types
+                    if isinstance(raw_key, tuple):
+                        key_bytes = raw_key[0] if raw_key else b''
+                        value_bytes = raw_key[1] if len(raw_key) > 1 else b''
+                    elif isinstance(raw_key, bytes):
+                        key_bytes = raw_key
+                        value_bytes = db[raw_key]
+                    elif isinstance(raw_key, str):
+                        key_bytes = raw_key.encode('utf-8')
+                        value_bytes = db[raw_key]
+                    else:
+                        key_bytes = str(raw_key).encode('utf-8')
+                        value_bytes = db[raw_key]
+                    
+                    # Decode key to string
+                    if hasattr(key_bytes, 'decode'):
+                        key_str = key_bytes.decode('utf-8')
+                    else:
+                        key_str = str(key_bytes)
+                    
+                    # Process sentiment keys
+                    if key_str.startswith('sentiment:'):
+                        # Decode value
+                        if hasattr(value_bytes, 'decode'):
+                            value_str = value_bytes.decode('utf-8')
+                        else:
+                            value_str = str(value_bytes)
+                        
+                        sentiment_data = json.loads(value_str)
+                        sentiment = sentiment_data.get('sentiment', 'neutral')
+                        
+                        stats['total_analyzed'] += 1
+                        stats['sentiments'][sentiment] += 1
+                        
+                        # Extract post info from comment key
+                        comment_key = sentiment_data.get('comment_key', '')
+                        if comment_key:
+                            post_id = sentiment_data.get('content_id', 'unknown')
+                            if post_id not in stats['by_post']:
+                                stats['by_post'][post_id] = {'positive': 0, 'negative': 0, 'neutral': 0, 'total': 0}
+                            
+                            stats['by_post'][post_id][sentiment] += 1
+                            stats['by_post'][post_id]['total'] += 1
+                        
+                except Exception as e:
+                    continue
+                    
+        except Exception as e:
+            print(f"Error processing sentiment stats: {e}")
+        finally:
+            db.close()
+        
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@display_bp.route('/api/comment/<comment_id>/sentiment')
+def get_comment_sentiment(comment_id):
+    """Get sentiment analysis for a specific comment"""
+    try:
+        db = get_unqlite_db()
+        
+        try:
+            # Search for sentiment data for this comment
+            for raw_key in db:
+                try:
+                    # Handle different key types
+                    if isinstance(raw_key, tuple):
+                        key_bytes = raw_key[0] if raw_key else b''
+                        value_bytes = raw_key[1] if len(raw_key) > 1 else b''
+                    elif isinstance(raw_key, bytes):
+                        key_bytes = raw_key
+                        value_bytes = db[raw_key]
+                    elif isinstance(raw_key, str):
+                        key_bytes = raw_key.encode('utf-8')
+                        value_bytes = db[raw_key]
+                    else:
+                        key_bytes = str(raw_key).encode('utf-8')
+                        value_bytes = db[raw_key]
+                    
+                    # Decode key to string
+                    if hasattr(key_bytes, 'decode'):
+                        key_str = key_bytes.decode('utf-8')
+                    else:
+                        key_str = str(key_bytes)
+                    
+                    # Check if this is a sentiment key for our comment
+                    if key_str.startswith('sentiment:') and comment_id in key_str:
+                        # Decode value
+                        if hasattr(value_bytes, 'decode'):
+                            value_str = value_bytes.decode('utf-8')
+                        else:
+                            value_str = str(value_bytes)
+                        
+                        sentiment_data = json.loads(value_str)
+                        
+                        # Verify this is the right comment
+                        if sentiment_data.get('comment_id') == comment_id:
+                            return jsonify({
+                                'success': True,
+                                'sentiment': sentiment_data
+                            })
+                        
+                except Exception as e:
+                    continue
+                    
+        except Exception as e:
+            print(f"Error searching for sentiment: {e}")
+        finally:
+            db.close()
+        
+        # No sentiment found
+        return jsonify({
+            'success': True,
+            'sentiment': None
         })
         
     except Exception as e:

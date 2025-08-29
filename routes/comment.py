@@ -134,11 +134,11 @@ def get_posts_from_db():
                 print(f"Error processing key {raw_key}: {e}")
                 continue
         
-        # Debug output
-        print(f"DEBUG: Found {len(all_content)} total content items")
-        print(f"DEBUG: Found {len(posts)} posted content items")
-        for item in all_content[:3]:  # Show first 3 items for debugging
-            print(f"DEBUG: {item}")
+        # Uncomment for debugging
+        # print(f"DEBUG: Found {len(all_content)} total content items")
+        # print(f"DEBUG: Found {len(posts)} posted content items")
+        # for item in all_content[:3]:  # Show first 3 items for debugging
+        #     print(f"DEBUG: {item}")
                     
     except Exception as e:
         print(f"Error getting posts from database: {e}")
@@ -234,22 +234,58 @@ def get_comments_from_db(content_id, post_id=None):
         if post_id:
             # Get comments for specific post
             comments_key = f'comments:{content_id}:{post_id}'
+            
             try:
-                # Handle tuple format from UnQLite
-                for raw_key in db:
-                    if isinstance(raw_key, tuple):
-                        key_str = raw_key[0].decode('utf-8') if hasattr(raw_key[0], 'decode') else str(raw_key[0])
-                        value_bytes = raw_key[1]
-                    else:
-                        key_str = raw_key.decode('utf-8') if hasattr(raw_key, 'decode') else str(raw_key)
-                        value_bytes = db[raw_key]
+                # Try direct key access first
+                if comments_key.encode('utf-8') in db:
+                    value_bytes = db[comments_key.encode('utf-8')]
+                    value_str = value_bytes.decode('utf-8') if hasattr(value_bytes, 'decode') else str(value_bytes)
+                    return json.loads(value_str)
+                elif comments_key in db:
+                    value_bytes = db[comments_key]
+                    value_str = value_bytes.decode('utf-8') if hasattr(value_bytes, 'decode') else str(value_bytes)
+                    return json.loads(value_str)
                     
-                    if key_str == comments_key:
-                        value_str = value_bytes.decode('utf-8') if hasattr(value_bytes, 'decode') else str(value_bytes)
-                        return json.loads(value_str)
+                # If direct access fails, iterate through keys
+                for raw_key in db:
+                    try:
+                        if isinstance(raw_key, tuple):
+                            key_str = raw_key[0].decode('utf-8') if hasattr(raw_key[0], 'decode') else str(raw_key[0])
+                            value_bytes = raw_key[1]
+                        else:
+                            key_str = raw_key.decode('utf-8') if hasattr(raw_key, 'decode') else str(raw_key)
+                            value_bytes = db[raw_key]
+                        
+                        if key_str == comments_key:
+                            value_str = value_bytes.decode('utf-8') if hasattr(value_bytes, 'decode') else str(value_bytes)
+                            return json.loads(value_str)
+                    except Exception as e:
+                        continue
+                
+                # Also try searching for comments by Facebook post ID only (in case content_id doesn't match)
+                for raw_key in db:
+                    try:
+                        if isinstance(raw_key, tuple):
+                            key_str = raw_key[0].decode('utf-8') if hasattr(raw_key[0], 'decode') else str(raw_key[0])
+                            value_bytes = raw_key[1]
+                        else:
+                            key_str = raw_key.decode('utf-8') if hasattr(raw_key, 'decode') else str(raw_key)
+                            value_bytes = db[raw_key]
+                        
+                        # Check if this is a comment key ending with our post_id
+                        if key_str.startswith('comments:') and key_str.endswith(':' + post_id):
+                            value_str = value_bytes.decode('utf-8') if hasattr(value_bytes, 'decode') else str(value_bytes)
+                            comment_data = json.loads(value_str)
+                            # Verify the Facebook post ID matches
+                            if comment_data.get('post_id') == post_id:
+                                return comment_data
+                    except Exception as e:
+                        continue
                 
                 return None
-            except KeyError:
+                
+            except Exception as e:
+                print(f"Error getting comments for key {comments_key}: {e}")
                 return None
         else:
             # Get all comments for content
@@ -270,7 +306,7 @@ def get_comments_from_db(content_id, post_id=None):
                 except Exception as e:
                     print(f"Error parsing comment data for key {key_str}: {e}")
                     continue
-            return all_comments
+            return all_comments if all_comments else None
                         
     except Exception as e:
         print(f"Error getting comments from database: {e}")
@@ -284,9 +320,9 @@ def get_comments_from_db(content_id, post_id=None):
 def list_posted_content():
     """API endpoint to list all posted content"""
     try:
-        print("DEBUG: API endpoint /admin-panel/api/posts called")
+        # print("DEBUG: API endpoint /admin-panel/api/posts called")
         posts = get_posts_from_db()
-        print(f"DEBUG: Returning {len(posts)} posts")
+        # print(f"DEBUG: Returning {len(posts)} posts")
         return jsonify({'success': True, 'posts': posts, 'count': len(posts)})
         
     except Exception as e:

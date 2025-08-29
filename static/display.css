@@ -326,7 +326,7 @@ body {
     gap: 10px;
 }
 
-.toggle-btn, .toggle-comments-btn {
+.toggle-btn, .toggle-comments-btn, .refresh-btn {
     background: none;
     border: 2px solid var(--border-color);
     padding: 8px 12px;
@@ -336,7 +336,7 @@ body {
     transition: all 0.3s ease;
 }
 
-.toggle-btn:hover, .toggle-comments-btn:hover {
+.toggle-btn:hover, .toggle-comments-btn:hover, .refresh-btn:hover {
     border-color: var(--primary-color);
     color: var(--primary-color);
     transform: scale(1.05);
@@ -346,6 +346,26 @@ body {
     border-color: var(--primary-color);
     color: var(--primary-color);
     background: rgba(24, 119, 242, 0.1);
+}
+
+.refresh-btn:hover {
+    border-color: #28a745;
+    color: #28a745;
+}
+
+.refresh-btn.loading {
+    border-color: #28a745;
+    color: #28a745;
+    background: rgba(40, 167, 69, 0.1);
+}
+
+.refresh-btn.loading i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 .toggle-btn.active i {

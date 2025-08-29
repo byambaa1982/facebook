@@ -217,11 +217,16 @@ class PostsDisplay {
         
         // Add event listeners
         const toggleBtn = postElement.querySelector('.toggle-btn');
+        const refreshBtn = postElement.querySelector('.refresh-btn');
         const postDetails = postElement.querySelector('.post-details');
         
         toggleBtn.addEventListener('click', () => {
             postDetails.classList.toggle('visible');
             toggleBtn.classList.toggle('active');
+        });
+        
+        refreshBtn.addEventListener('click', () => {
+            this.refreshPostComments(post.id, refreshBtn, postElement);
         });
         
         // Handle comments
@@ -295,6 +300,101 @@ class PostsDisplay {
         return commentElement;
     }
     
+    async refreshPostComments(postId, refreshBtn, postElement) {
+        try {
+            // Show loading state
+            refreshBtn.classList.add('loading');
+            refreshBtn.disabled = true;
+            refreshBtn.title = 'Refreshing comments...';
+            
+            // Call refresh API
+            const response = await fetch(`/api/post/${postId}/refresh`);
+            const data = await response.json();
+            
+            if (data.success) {
+                // Update the comments section with fresh data
+                const commentsSection = postElement.querySelector('.comments-section');
+                const commentsList = postElement.querySelector('.comments-list');
+                const commentsHeader = postElement.querySelector('.comments-header');
+                const commentsBadge = postElement.querySelector('.comments-badge');
+                
+                if (data.comments && data.comments.total_comments > 0) {
+                    // Show comments section if it was hidden
+                    commentsSection.style.display = 'block';
+                    
+                    // Update comments header
+                    const commentsTitle = commentsHeader.querySelector('h3');
+                    commentsTitle.innerHTML = `<i class="fas fa-comments"></i> Comments (${data.comments.total_comments})`;
+                    
+                    // Update comments badge
+                    if (commentsBadge) {
+                        commentsBadge.style.display = 'flex';
+                        commentsBadge.querySelector('.comment-count').textContent = data.comments.total_comments;
+                    }
+                    
+                    // Re-render comments
+                    this.renderComments(commentsList, data.comments.comments);
+                    
+                    // Show success message
+                    if (data.fetched_count > 0) {
+                        this.showTemporaryMessage(refreshBtn, `Refreshed! ${data.fetched_count} new comments`, 'success');
+                    } else {
+                        this.showTemporaryMessage(refreshBtn, 'Comments up to date', 'info');
+                    }
+                } else {
+                    // No comments found
+                    commentsSection.style.display = 'none';
+                    if (commentsBadge) {
+                        commentsBadge.style.display = 'none';
+                    }
+                    this.showTemporaryMessage(refreshBtn, 'No comments found', 'info');
+                }
+                
+            } else {
+                this.showTemporaryMessage(refreshBtn, `Error: ${data.error}`, 'error');
+            }
+            
+        } catch (error) {
+            console.error('Error refreshing comments:', error);
+            this.showTemporaryMessage(refreshBtn, 'Refresh failed', 'error');
+        } finally {
+            // Reset button state
+            refreshBtn.classList.remove('loading');
+            refreshBtn.disabled = false;
+            refreshBtn.title = 'Refresh post comments';
+        }
+    }
+    
+    showTemporaryMessage(button, message, type = 'info') {
+        const originalTitle = button.title;
+        const originalColor = button.style.borderColor;
+        
+        // Update button appearance based on message type
+        button.title = message;
+        
+        switch (type) {
+            case 'success':
+                button.style.borderColor = '#28a745';
+                button.style.color = '#28a745';
+                break;
+            case 'error':
+                button.style.borderColor = '#dc3545';
+                button.style.color = '#dc3545';
+                break;
+            case 'info':
+                button.style.borderColor = '#17a2b8';
+                button.style.color = '#17a2b8';
+                break;
+        }
+        
+        // Reset after 3 seconds
+        setTimeout(() => {
+            button.title = originalTitle;
+            button.style.borderColor = originalColor;
+            button.style.color = '';
+        }, 3000);
+    }
+
     formatDate(dateString) {
         if (!dateString || dateString === 'Unknown') {
             return 'Unknown date';

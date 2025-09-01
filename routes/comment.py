@@ -44,7 +44,19 @@ def get_facebook_apps():
         with open(creds_path, 'r', encoding='utf-8') as f:
             creds_data = json.load(f)
         
-        if 'data' in creds_data:
+        # First try root level tokens (these are often more recent)
+        if 'page_id' in creds_data and 'page_token' in creds_data:
+            app_data = {
+                'page_id': creds_data.get('page_id'),
+                'username': 'Facebook Page',
+                'password': creds_data.get('page_token'),
+                'category': 'Page',
+                'tasks': []
+            }
+            apps.append(app_data)
+        
+        # Fallback to data array tokens if no root level tokens
+        elif 'data' in creds_data and creds_data['data']:
             for app in creds_data['data']:
                 # Transform the data structure to match what the rest of the code expects
                 app_data = {

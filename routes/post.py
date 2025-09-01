@@ -29,6 +29,23 @@ def get_unqlite_db():
     db_path = os.path.join(os.path.dirname(__file__), '..', 'instance', 'data.db')
     return UnQLite(db_path)
 
+def validate_facebook_token(access_token):
+    """Validate if Facebook access token is still valid"""
+    try:
+        response = requests.get(
+            "https://graph.facebook.com/v21.0/me",
+            params={"access_token": access_token}
+        )
+        
+        if response.status_code == 200:
+            return {"valid": True, "data": response.json()}
+        else:
+            error_data = response.json() if response.content else {}
+            return {"valid": False, "error": error_data}
+            
+    except Exception as e:
+        return {"valid": False, "error": {"message": str(e)}}
+
 def get_facebook_apps():
     """Get all Facebook apps from creds.json"""
     apps = []
@@ -44,7 +61,19 @@ def get_facebook_apps():
         with open(creds_path, 'r', encoding='utf-8') as f:
             creds_data = json.load(f)
         
-        if 'data' in creds_data:
+        # First try root level tokens (these are often more recent)
+        if 'page_id' in creds_data and 'page_token' in creds_data:
+            app_data = {
+                'page_id': creds_data.get('page_id'),
+                'username': 'Facebook Page',
+                'password': creds_data.get('page_token'),
+                'category': 'Page',
+                'tasks': []
+            }
+            apps.append(app_data)
+        
+        # Fallback to data array tokens if no root level tokens
+        elif 'data' in creds_data and creds_data['data']:
             for app in creds_data['data']:
                 # Transform the data structure to match what the rest of the code expects
                 app_data = {
@@ -219,17 +248,45 @@ def list_facebook_apps():
     """API endpoint to list available Facebook apps/pages"""
     try:
         apps = get_facebook_apps()
-        # Don't include the full access token for security
+        # Don't include the full access token for security, but validate tokens
         safe_apps = []
         for app in apps:
+            access_token = app.get('password')
+            token_status = validate_facebook_token(access_token) if access_token else {"valid": False}
+            
             safe_app = {
                 'page_id': app.get('page_id'),
                 'username': app.get('username', 'Unknown Page'),
-                'has_token': bool(app.get('password'))
+                'has_token': bool(access_token),
+                'token_valid': token_status.get('valid', False),
+                'token_error': token_status.get('error', {}).get('message') if not token_status.get('valid') else None
             }
             safe_apps.append(safe_app)
         
         return jsonify({'success': True, 'apps': safe_apps})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@bp_post.route('/admin-panel/api/facebook-apps/validate-token', methods=['POST'])
+@login_required
+@admin_required
+def validate_token():
+    """API endpoint to validate a specific Facebook token"""
+    try:
+        data = request.get_json()
+        if not data or 'access_token' not in data:
+            return jsonify({'success': False, 'error': 'Access token is required'}), 400
+        
+        access_token = data['access_token']
+        validation_result = validate_facebook_token(access_token)
+        
+        return jsonify({
+            'success': True, 
+            'valid': validation_result['valid'],
+            'error': validation_result.get('error'),
+            'data': validation_result.get('data')
+        })
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

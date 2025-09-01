@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
 """
-Fetch Comments from Latest Facebook Post
-========================================
+Fetch Comments from Latest Facebook Post - Standalone Version
+==============================================================
 """
-
-import sys
-import os
-sys.path.append('.')
 
 import requests
 import json
+import os
 from datetime import datetime
 
 def get_facebook_apps():
@@ -209,17 +206,21 @@ def main():
                 print("   " + "-" * 50)
                 
             print(f"\n🎯 Summary: {total_comments} comment(s) found on your latest post")
-            print("   These match the 2 comments you mentioned seeing in the Facebook UI!")
             
         else:
             print("ℹ️  No comments found on this post")
             print("   This might mean:")
+            print("   - The post doesn't have any comments yet")
             print("   - Comments are not publicly visible")
             print("   - The access token doesn't have permission to read comments")
-            print("   - The post doesn't have any comments yet")
+            print("   - Comment settings on the post are restrictive")
             
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Network error occurred: {str(e)}")
+        print("   Check your internet connection and try again")
+        
     except Exception as e:
-        print(f"❌ Error occurred: {str(e)}")
+        print(f"❌ Unexpected error occurred: {str(e)}")
         import traceback
         traceback.print_exc()
 

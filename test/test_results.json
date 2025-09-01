@@ -1,34 +1,19 @@
 {
   "token_validation": {
-    "is_page_token": true,
-    "token_name": "\u042d\u0445\u043b\u044d\u043b",
-    "token_id": "682084288324866",
-    "has_moderate": true
+    "status": "FAILED",
+    "error": {
+      "message": "Error validating access token: The session is invalid because the user logged out.",
+      "type": "OAuthException",
+      "code": 190,
+      "error_subcode": 467,
+      "fbtrace_id": "Aqj8eeTMsHINWhumEq1MCNi"
+    }
   },
-  "permissions_check": {
-    "current_scopes": [
-      "email",
-      "read_insights",
-      "pages_show_list",
-      "instagram_basic",
-      "instagram_content_publish",
-      "pages_read_engagement",
-      "pages_read_user_content",
-      "pages_manage_posts",
-      "pages_manage_engagement",
-      "public_profile"
-    ],
-    "missing_scopes": [],
-    "has_all_required": true
-  },
+  "permissions_check": {},
   "basic_operations": {
-    "page_info": "PASSED",
-    "get_posts": "PASSED"
+    "page_info": "FAILED",
+    "get_posts": "FAILED"
   },
-  "engagement_operations": {
-    "get_comments": "PASSED",
-    "write_comment": "SKIPPED",
-    "like_post": "SKIPPED"
-  },
+  "engagement_operations": {},
   "errors": []
 }

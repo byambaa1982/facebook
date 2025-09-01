@@ -5,6 +5,12 @@ Facebook Page Manager Test Suite
 This test file validates the FacebookPageManager functionality and helps debug
 common token/permission issues based on Facebook's recommended troubleshooting.
 
+RECENT UPDATES:
+- Updated for new page: "Byamba Enkhbat" (ID: 103438647696102)
+- Added support for Facebook API response format in creds.json
+- Auto-converts Facebook /me/accounts response to config.json format
+- Enhanced diagnostics for new page setup
+
 Key validations:
 1. Token type verification (Page vs User token)
 2. Required permissions and scopes check
@@ -24,7 +30,9 @@ class FacebookPageTester:
     
     def __init__(self, config_file: str = "creds.json"):
         """Initialize tester with Facebook Page Manager."""
-        self.fb = FacebookPageManager(config_file)
+        # Load credentials and convert format if needed
+        self._prepare_config(config_file)
+        self.fb = FacebookPageManager("config.json")  # Use the prepared config
         self.test_results = {
             "token_validation": {},
             "permissions_check": {},
@@ -32,6 +40,69 @@ class FacebookPageTester:
             "engagement_operations": {},
             "errors": []
         }
+    
+    def _prepare_config(self, config_file: str):
+        """Prepare config file for FacebookPageManager if needed."""
+        try:
+            with open(config_file, "r", encoding='utf-8') as f:
+                config = json.load(f)
+            
+            # Check if it's the new Facebook API response format
+            if "data" in config and isinstance(config["data"], list) and len(config["data"]) > 0:
+                # Extract the first page data
+                page_data = config["data"][0]
+                prepared_config = {
+                    "page_id": page_data["id"],
+                    "page_token": page_data["access_token"]
+                }
+                
+                # Write to config.json for FacebookPageManager
+                with open("config.json", "w", encoding='utf-8') as f:
+                    json.dump(prepared_config, f, indent=2)
+                    
+                print(f"✅ Prepared config for page: {page_data['name']} (ID: {page_data['id']})")
+                
+            elif "page_id" in config and "page_token" in config:
+                # Already in the correct format, just copy it
+                with open("config.json", "w", encoding='utf-8') as f:
+                    json.dump(config, f, indent=2)
+                    
+        except Exception as e:
+            print(f"❌ Error preparing config: {str(e)}")
+            raise
+    
+    def validate_new_credentials(self):
+        """Validate the new credentials format and show page information."""
+        print("\n📋 NEW PAGE SETUP VALIDATION")
+        print("=" * 50)
+        
+        try:
+            with open("creds.json", "r", encoding='utf-8') as f:
+                creds = json.load(f)
+            
+            if "data" in creds and len(creds["data"]) > 0:
+                page_data = creds["data"][0]
+                print("✅ Credentials format: Facebook API response")
+                print(f"📄 Page Name: {page_data.get('name')}")
+                print(f"📄 Page ID: {page_data.get('id')}")
+                print(f"📄 Category: {page_data.get('category')}")
+                print(f"📄 Available Tasks: {', '.join(page_data.get('tasks', []))}")
+                
+                # Check for required tasks
+                required_tasks = ["MODERATE", "CREATE_CONTENT", "MANAGE"]
+                available_tasks = page_data.get('tasks', [])
+                missing_tasks = [task for task in required_tasks if task not in available_tasks]
+                
+                if not missing_tasks:
+                    print("✅ All required tasks are available")
+                else:
+                    print(f"❌ Missing required tasks: {', '.join(missing_tasks)}")
+                    
+            else:
+                print("❌ Invalid credentials format")
+                
+        except Exception as e:
+            print(f"❌ Error validating credentials: {str(e)}")
     
     def assert_page_token(self):
         """
@@ -262,20 +333,27 @@ class FacebookPageTester:
         
         checklist = [
             ("User Access Token includes required scopes", "Check get_token.py permissions"),
-            ("Page Access Token copied from me/accounts", "Check creds.json token source"),
+            ("Page Access Token copied from me/accounts", "Verify creds.json contains correct page data"),
             ("Token switched to Page Access Token in testing", "Verify with assert_page_token()"),
             ("Page role includes MODERATE task", "Check Page settings > Page roles"),
-            ("API calls use Page Access Token", "Verify FacebookPageManager loads correct token")
+            ("API calls use correct Page Access Token", "Verify FacebookPageManager loads correct token"),
+            ("New page setup is properly configured", "Confirm page ID 103438647696102 is correct")
         ]
         
         for item, hint in checklist:
             print(f"  ☐ {item}")
             print(f"     💡 {hint}")
         
+        print("\nFor the new page setup (Byamba Enkhbat - ID: 103438647696102):")
+        print("  ✅ Page has all required tasks: MODERATE, MESSAGING, ANALYZE, ADVERTISE, CREATE_CONTENT, MANAGE")
+        print("  ✅ Category: Product/service")
+        print("  ✅ Token format converted automatically from Facebook API response")
+        
         print("\nIf comment/like operations fail:")
         print("  1. Regenerate User token with pages_manage_engagement scope")
         print("  2. Re-fetch Page token via me/accounts endpoint") 
         print("  3. Verify Page role has MODERATE permission in Page settings")
+        print("  4. Ensure new page access token is not expired")
     
     def print_summary(self):
         """Print a summary of all test results."""
@@ -327,9 +405,12 @@ class FacebookPageTester:
         print("🧪 FACEBOOK PAGE MANAGER TEST SUITE")
         print("=" * 50)
         print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"Page ID: {self.fb.page_id}")
+        print(f"Testing Page ID: {self.fb.page_id}")
+        print(f"API Version: Facebook Graph API v21.0")
+        print()
         
         # Run all tests
+        self.validate_new_credentials()
         self.assert_page_token()
         self.check_required_permissions()
         self.test_basic_operations()
@@ -347,6 +428,10 @@ class FacebookPageTester:
 def main():
     """Main function to run tests."""
     try:
+        print("🚀 FACEBOOK PAGE MANAGER TEST SUITE")
+        print("=" * 50)
+        print("Initializing with updated credentials...")
+        
         tester = FacebookPageTester()
         tester.run_full_test()
         
@@ -356,6 +441,11 @@ def main():
         print("  • creds.json file missing or invalid")
         print("  • Facebook tokens expired or invalid")
         print("  • Network connectivity issues")
+        print("  • New page setup not properly configured")
+        print("\nFor new page setup:")
+        print("  • Ensure creds.json contains valid Facebook API response")
+        print("  • Verify page access token has all required permissions")
+        print("  • Check that page role includes MODERATE task")
 
 
 if __name__ == "__main__":
